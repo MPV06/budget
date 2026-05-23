@@ -32,9 +32,11 @@ with get_session() as session:
 # ─── HEADLINE METRICS ──────────────────────────────────────────────
 col1, col2, col3 = st.columns(3)
 col1.metric(
-    "Leftover this paycheck",
+    "Guilt-free spending this paycheck",
     f"${view.leftover_this_paycheck:,.2f}",
-    help="Paycheck − bills − BNPL − envelope budgets this period. This is what you can save.",
+    help=("Paycheck − bills − BNPL − envelopes. Per finance-psychology standards "
+          "(Sethi): once obligations and savings are funded, this money is meant to "
+          "be spent — without guilt."),
 )
 col2.metric(
     "Next paycheck",
@@ -59,7 +61,7 @@ bc1.metric("Paycheck", f"${view.paycheck_amount:,.2f}")
 bc2.metric("Bills", f"−${view.bills_this_period:,.2f}")
 bc3.metric("BNPL", f"−${view.bnpl_this_period:,.2f}")
 bc4.metric("Envelopes", f"−${view.envelopes_this_period:,.2f}")
-bc5.metric("Leftover", f"${view.leftover_this_paycheck:,.2f}",
+bc5.metric("Guilt-free", f"${view.leftover_this_paycheck:,.2f}",
            delta_color="normal" if view.leftover_this_paycheck >= 0 else "inverse")
 
 if view.leftover_this_paycheck < 0:
@@ -67,6 +69,38 @@ if view.leftover_this_paycheck < 0:
         f"⚠ You're **${abs(view.leftover_this_paycheck):,.2f} short** this paycheck. "
         "Trim envelopes, defer a BNPL, or reduce a discretionary bill."
     )
+
+# ─── CONSCIOUS SPENDING PLAN (Sethi 4-bucket) ──────────────────────
+if view.paycheck_amount > 0:
+    st.subheader("Conscious Spending Plan (per Sethi standard)")
+    st.caption(
+        "Target allocation of net pay: **Fixed Costs 50–60% · Investments 10%+ · "
+        "Savings 5–10% · Guilt-Free Spending 20–35%**. The word \"budget\" is taboo "
+        "here — this is values-aligned spending, not restriction."
+    )
+    fixed_costs = view.bills_this_period + view.envelopes_this_period + view.bnpl_this_period
+    fc_pct = fixed_costs / view.paycheck_amount * 100
+    # In this app, we don't track separate investment / savings flows yet — show
+    # the guilt-free pool and prompt the user to allocate from it.
+    gf_pct = max(0, view.leftover_this_paycheck) / view.paycheck_amount * 100
+    csp_df = pd.DataFrame([
+        {"bucket": "Fixed Costs (bills + envelopes + BNPL)",
+         "target": "50–60%", "actual_%": round(fc_pct, 1),
+         "amount": round(fixed_costs, 2)},
+        {"bucket": "Investments + Savings (allocate from guilt-free below)",
+         "target": "15–20%", "actual_%": 0.0,
+         "amount": 0.0},
+        {"bucket": "Guilt-Free Spending (left after obligations)",
+         "target": "20–35%", "actual_%": round(gf_pct, 1),
+         "amount": round(max(0, view.leftover_this_paycheck), 2)},
+    ])
+    st.dataframe(csp_df, use_container_width=True, hide_index=True)
+    if fc_pct > 60:
+        st.warning(
+            f"Fixed costs are **{fc_pct:.0f}%** of your paycheck — above the 60% ceiling. "
+            "Per finance-psychology standards, this is the lever to pull: housing, debt, "
+            "or subscriptions. Trimming a $5 latte won't fix a 70% fixed-cost ratio."
+        )
 
 # ─── 50/30/20 BREAKDOWN ─────────────────────────────────────────────
 if view.fifty_thirty_twenty:

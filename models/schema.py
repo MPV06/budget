@@ -101,3 +101,26 @@ class SyncState(SQLModel, table=True):
     __table_args__ = _TARGS
     key: str = Field(primary_key=True)
     value: str
+
+
+class SavingsGoal(SQLModel, table=True):
+    __table_args__ = _TARGS
+    id: Optional[int] = Field(default=None, primary_key=True)
+    name: str
+    target_amount: float                  # in today's dollars
+    target_date: date
+    current_balance: float = 0.0
+    priority: int = 100                   # lower = higher priority
+    notes: str = ""
+    is_active: bool = True
+
+
+class DebtAccount(SQLModel, table=True):
+    __table_args__ = _TARGS
+    id: Optional[int] = Field(default=None, primary_key=True)
+    name: str
+    balance: float
+    apr_pct: float
+    min_payment: float
+    notes: str = ""
+    is_active: bool = True
