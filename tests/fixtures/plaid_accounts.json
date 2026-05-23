@@ -1,0 +1,7 @@
+{
+  "accounts": [
+    {"account_id": "acct_1", "name": "Chase Total Checking",
+     "type": "depository", "subtype": "checking",
+     "balances": {"current": 1523.45, "available": 1450.00}}
+  ]
+}

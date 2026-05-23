@@ -1,0 +1,12 @@
+{
+  "added": [
+    {"transaction_id": "tx_003", "account_id": "acct_1", "date": "2026-05-03",
+     "amount": 88.20, "name": "Trader Joe's", "merchant_name": "Trader Joe's",
+     "personal_finance_category": {"primary": "FOOD_AND_DRINK_GROCERIES", "detailed": "FOOD_AND_DRINK_GROCERIES"},
+     "pending": false}
+  ],
+  "modified": [],
+  "removed": [{"transaction_id": "tx_001"}],
+  "next_cursor": "cursor_v2",
+  "has_more": false
+}

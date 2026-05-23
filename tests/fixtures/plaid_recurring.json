@@ -1,0 +1,25 @@
+{
+  "outflow_streams": [
+    {"stream_id": "stream_a", "merchant_name": "Netflix",
+     "description": "NETFLIX.COM",
+     "average_amount": {"amount": 15.99},
+     "last_amount": {"amount": 15.99},
+     "frequency": "MONTHLY",
+     "predicted_next_date": "2026-06-05",
+     "is_active": true,
+     "category": ["Service", "Subscription"],
+     "personal_finance_category": {"primary": "ENTERTAINMENT", "detailed": "ENTERTAINMENT_TV_AND_MOVIES"},
+     "status": "MATURE"},
+    {"stream_id": "stream_b", "merchant_name": "Con Edison",
+     "description": "CONED ELECTRIC",
+     "average_amount": {"amount": 87.50},
+     "last_amount": {"amount": 92.10},
+     "frequency": "MONTHLY",
+     "predicted_next_date": "2026-06-12",
+     "is_active": true,
+     "category": ["Service", "Utilities"],
+     "personal_finance_category": {"primary": "RENT_AND_UTILITIES", "detailed": "RENT_AND_UTILITIES_GAS_AND_ELECTRICITY"},
+     "status": "MATURE"}
+  ],
+  "inflow_streams": []
+}

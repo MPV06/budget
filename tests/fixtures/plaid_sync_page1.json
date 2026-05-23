@@ -1,0 +1,16 @@
+{
+  "added": [
+    {"transaction_id": "tx_001", "account_id": "acct_1", "date": "2026-05-01",
+     "amount": 12.50, "name": "Starbucks", "merchant_name": "Starbucks",
+     "personal_finance_category": {"primary": "FOOD_AND_DRINK_COFFEE", "detailed": "FOOD_AND_DRINK_COFFEE"},
+     "pending": false},
+    {"transaction_id": "tx_002", "account_id": "acct_1", "date": "2026-05-02",
+     "amount": 65.00, "name": "Shell Oil", "merchant_name": "Shell",
+     "personal_finance_category": {"primary": "TRANSPORTATION_GAS", "detailed": "TRANSPORTATION_GAS"},
+     "pending": false}
+  ],
+  "modified": [],
+  "removed": [],
+  "next_cursor": "cursor_v1",
+  "has_more": true
+}
