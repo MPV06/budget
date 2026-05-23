@@ -42,6 +42,27 @@ def test_project_unknown_cadence_is_one_time():
     assert instances == [date(2026, 6, 1)]
 
 
+def test_semi_monthly_appears_exactly_once_per_paycheck(session):
+    """A bill marked semi_monthly should hit EVERY paycheck — once per period.
+
+    User's intent: 'I pay $280 in gas each paycheck' — cadence='semi_monthly'.
+    """
+    session.add(RecurringBill(
+        source="manual", merchant_name="Gas", display_name="Gas",
+        amount=280, cadence="semi_monthly",
+        next_due_date=date(2026, 5, 29), category="needs",
+        is_active=True, confirmed_by_user=True,
+    ))
+    session.commit()
+
+    breakdowns = build_paycheck_breakdowns(
+        session, SCHEDULE, today=date(2026, 5, 16), paycheck_amount=2890, n=4,
+    )
+    for i, b in enumerate(breakdowns):
+        assert b.bills_total == 280.0, f"Period {i} missing semi_monthly gas (got {b.bills_total})"
+        assert len(b.bills) == 1, f"Period {i} should have exactly 1 bill"
+
+
 def test_recurring_rent_appears_in_both_months_of_paychecks(session):
     """Critical: monthly rent should appear once per month across all paychecks,
     not just the very next due date."""

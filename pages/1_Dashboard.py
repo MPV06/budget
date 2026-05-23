@@ -11,7 +11,20 @@ from services.paycheck_calendar import generate_paycheck_dates, next_paycheck_af
 from services.paycheck_view import build_paycheck_breakdowns, average_guilt_free
 
 st.set_page_config(page_title="Dashboard — Budget", layout="wide")
-st.title("Dashboard")
+
+# ─── PALETTE ────────────────────────────────────────────────────────
+# Consistent across all charts
+PALETTE = {
+    "Income":     "#3b82f6",   # blue
+    "Bills":      "#ef4444",   # red
+    "BNPL":       "#f97316",   # orange
+    "Envelopes":  "#eab308",   # yellow
+    "Guilt-free": "#22c55e",   # green
+    "Savings":    "#10b981",   # emerald
+}
+
+st.title("💰 Budget Dashboard")
+st.caption(f"As of **{date.today().strftime('%A, %B %d, %Y')}**")
 
 s = get_settings()
 today = date.today()
@@ -111,6 +124,105 @@ if breakdowns:
         f"Dashed line = your full paycheck (${s.paycheck_net_amount:,.2f}). "
         "If the colored bars exceed that line, that paycheck is short."
     )
+
+# ─── WHERE YOUR MONEY GOES (donut) + CUMULATIVE SAVINGS (line) ───
+if breakdowns:
+    st.markdown("---")
+    st.subheader("📊 Where your money goes & savings trajectory")
+
+    donut_col, line_col = st.columns([1, 1])
+
+    # ── DONUT: average paycheck allocation ──
+    with donut_col:
+        st.markdown("**Average paycheck allocation**")
+        avg_bills = sum(b.bills_total for b in breakdowns) / len(breakdowns)
+        avg_bnpl = sum(b.bnpl_total for b in breakdowns) / len(breakdowns)
+        avg_env = sum(b.envelopes_allocated for b in breakdowns) / len(breakdowns)
+        avg_gf_pos = max(0, avg_gf)
+        donut_data = pd.DataFrame([
+            {"category": "Bills", "amount": avg_bills},
+            {"category": "BNPL", "amount": avg_bnpl},
+            {"category": "Envelopes", "amount": avg_env},
+            {"category": "Guilt-free", "amount": avg_gf_pos},
+        ])
+        donut_data = donut_data[donut_data["amount"] > 0]
+
+        donut = (
+            alt.Chart(donut_data)
+            .mark_arc(innerRadius=70, outerRadius=130, cornerRadius=4, padAngle=0.02)
+            .encode(
+                theta=alt.Theta("amount:Q", stack=True),
+                color=alt.Color(
+                    "category:N",
+                    scale=alt.Scale(
+                        domain=["Bills", "BNPL", "Envelopes", "Guilt-free"],
+                        range=[PALETTE["Bills"], PALETTE["BNPL"],
+                               PALETTE["Envelopes"], PALETTE["Guilt-free"]],
+                    ),
+                    legend=alt.Legend(title="Category", orient="bottom"),
+                ),
+                tooltip=["category", alt.Tooltip("amount:Q", format="$,.2f")],
+            )
+            .properties(height=320)
+        )
+        st.altair_chart(donut, use_container_width=True)
+
+    # ── LINE: cumulative guilt-free / savings projection over next 12 paychecks ──
+    with line_col:
+        st.markdown("**Cumulative savings projection (12 paychecks)**")
+        # Build longer schedule for projection
+        long_cal = generate_paycheck_dates(start=date(today.year, today.month, 1), months=12)
+        with get_session() as sess2:
+            long_breakdowns = build_paycheck_breakdowns(
+                sess2, long_cal, today=today,
+                paycheck_amount=s.paycheck_net_amount, n=12,
+            )
+        if long_breakdowns:
+            cum_rows = []
+            running = 0.0
+            for b in long_breakdowns:
+                running += b.guilt_free
+                cum_rows.append({
+                    "paycheck": b.deposit_date,
+                    "cumulative": round(running, 2),
+                    "per_paycheck": b.guilt_free,
+                })
+            cum_df = pd.DataFrame(cum_rows)
+
+            line = (
+                alt.Chart(cum_df)
+                .mark_area(
+                    line={"color": PALETTE["Savings"], "strokeWidth": 3},
+                    color=alt.Gradient(
+                        gradient="linear",
+                        stops=[
+                            alt.GradientStop(color="#10b98155", offset=0),
+                            alt.GradientStop(color="#10b98100", offset=1),
+                        ],
+                        x1=1, x2=1, y1=1, y2=0,
+                    ),
+                )
+                .encode(
+                    x=alt.X("paycheck:T", title="Paycheck deposit date",
+                            axis=alt.Axis(format="%b %d")),
+                    y=alt.Y("cumulative:Q", title="Cumulative savings",
+                            axis=alt.Axis(format="$,.0f")),
+                    tooltip=[
+                        alt.Tooltip("paycheck:T", format="%b %d, %Y"),
+                        alt.Tooltip("cumulative:Q", format="$,.2f", title="Cumulative"),
+                        alt.Tooltip("per_paycheck:Q", format="$,.2f", title="This paycheck"),
+                    ],
+                )
+                .properties(height=320)
+            )
+            zero_line = (
+                alt.Chart(pd.DataFrame({"y": [0]}))
+                .mark_rule(color="#94a3b8", strokeDash=[3, 3])
+                .encode(y="y:Q")
+            )
+            st.altair_chart(line + zero_line, use_container_width=True)
+            total_12 = round(running, 2)
+            st.caption(f"**Projected 6-month total: ${total_12:,.2f}** at current pace.")
 
 # ─── PER-PAYCHECK DETAIL — Excel-style transparent math ───────────
 for i, b in enumerate(breakdowns):

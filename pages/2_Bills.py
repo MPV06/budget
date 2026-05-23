@@ -11,22 +11,22 @@ st.title("Bills")
 with st.expander("ℹ️  How bills assign to paychecks", expanded=False):
     st.markdown(
         """
-        - **`next_due_date`** = the date of the next upcoming instance of this bill.
-          The app projects it forward by **cadence** to find every future hit.
-        - **Cadences:**
-            - `monthly` → e.g., Rent on the 1st of every month
-            - `semi_monthly` → e.g., Gas paid roughly every 15 days
-            - `biweekly` → e.g., paid every 14 days
-            - `weekly` → every 7 days
-            - `annual` → once a year
-        - **Bills with cadence `monthly` only hit the paycheck whose period contains
-          the due date.** So Rent due on the 1st will hit your first paycheck of the
-          month, not the second.
-        - **Want a "save $X every paycheck" line?** Add it as a manual bill with
-          `cadence=semi_monthly` and `category=savings`. It will deduct from each paycheck.
-        - **Don't double-count:** if you have a `Gas` envelope AND list Gas as a bill,
-          both deduct. Pick one — usually envelope (since gas is variable) OR bill
-          (if you transfer a fixed amount each paycheck).
+        **Pick the cadence that matches how you actually pay the bill:**
+
+        | Cadence | What it means | Example |
+        |---|---|---|
+        | `semi_monthly` | **Once per paycheck** (every check, regardless of date) | Gas $280, Allowance, Save, Haircut |
+        | `monthly` | Once per month on a specific date — hits only the paycheck whose period contains that date | Rent (1st), Mortgage, Insurance, Subscriptions |
+        | `biweekly` | Every 14 days from `next_due_date` | Some BNPL plans, weekly+ subscriptions |
+        | `weekly` | Every 7 days | Daycare, gym day-passes |
+        | `annual` | Once a year on a specific date | Property tax, AAA renewal |
+
+        **Common mistakes:**
+        - **Gas/Allowance/Haircut every paycheck?** Use `semi_monthly`, NOT `monthly`. Monthly would put it on only one of your two paychecks.
+        - **"Save $X per paycheck"?** Add as a manual bill with `cadence=semi_monthly`, `category=savings`.
+        - **Don't double-count:** if you have a Gas envelope AND a Gas bill, both deduct. Pick one — envelope (variable spend) OR bill (fixed transfer).
+
+        `next_due_date` is anchoring: for `monthly` it's the next due date (e.g., next Rent date). For `semi_monthly` it doesn't matter much — the bill auto-emits every period.
         """
     )
 

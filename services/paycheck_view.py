@@ -19,10 +19,14 @@ from models.schema import RecurringBill, BNPLInstallment, Envelope
 _CADENCE_STEP = {
     "weekly":       lambda d: d + timedelta(days=7),
     "biweekly":     lambda d: d + timedelta(days=14),
-    "semi_monthly": lambda d: d + timedelta(days=15),  # approximation
+    # semi_monthly is handled specially in build_paycheck_breakdowns — it emits
+    # ONCE PER PAYCHECK PERIOD (matches user intuition: "this bill hits every paycheck")
     "monthly":      lambda d: d + relativedelta(months=1),
     "annual":       lambda d: d + relativedelta(years=1),
 }
+
+# Cadences that mean "exactly once per paycheck period, regardless of date math"
+PER_PAYCHECK_CADENCES = {"semi_monthly", "per_paycheck"}
 
 
 def project_bill_instances(
@@ -141,11 +145,18 @@ def build_paycheck_breakdowns(
 
         period_bills = []
         for b in bills:
-            instances = project_bill_instances(b.next_due_date, b.cadence, start, end)
-            for d in instances:
+            cadence = (b.cadence or "monthly").lower()
+            if cadence in PER_PAYCHECK_CADENCES:
+                # Always emit exactly one instance per paycheck period.
                 period_bills.append(LineItem(
-                    label=b.display_name, amount=b.amount, due_date=d, kind="bill",
+                    label=b.display_name, amount=b.amount, due_date=start, kind="bill",
                 ))
+            else:
+                instances = project_bill_instances(b.next_due_date, cadence, start, end)
+                for d in instances:
+                    period_bills.append(LineItem(
+                        label=b.display_name, amount=b.amount, due_date=d, kind="bill",
+                    ))
         period_bnpl = [
             LineItem(label=f"BNPL #{i_.installment_number}", amount=i_.amount,
                      due_date=i_.due_date, kind="bnpl")
