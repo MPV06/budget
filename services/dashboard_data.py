@@ -70,13 +70,15 @@ def build_dashboard_view(
     if period_end is None:
         period_end = next_paycheck
 
-    # Balance: prefer Plaid-synced; fall back to manual override
-    plaid_balance = sum(a.current_balance for a in session.exec(
+    # Balance source preference: if there's an actual Plaid-synced checking account
+    # (regardless of current balance — $0 is a real balance), use Plaid. Otherwise
+    # fall back to user-entered manual balance.
+    checking_accounts = session.exec(
         select(Account).where(Account.subtype == "checking")
-    ).all())
+    ).all()
     manual_balance = _get_manual_balance(session)
-    if plaid_balance > 0:
-        balance = plaid_balance
+    if checking_accounts:
+        balance = sum(a.current_balance for a in checking_accounts)
         has_balance_source = True
     elif manual_balance is not None:
         balance = manual_balance
