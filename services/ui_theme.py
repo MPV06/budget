@@ -151,6 +151,15 @@ _CSS = """
     background: rgba(52, 211, 153, 0.10);
     border-color: rgba(52, 211, 153, 0.3);
 }
+.top-nav a.nav-item.nav-logout {
+    color: #94a3b8 !important;
+    margin-left: 4px;
+}
+.top-nav a.nav-item.nav-logout:hover {
+    color: #f87171 !important;
+    background: rgba(248, 113, 113, 0.10);
+    border-color: rgba(248, 113, 113, 0.3);
+}
 .top-nav a.nav-item .emoji {
     font-size: 0.95rem;
     filter: saturate(1.2);
@@ -598,8 +607,12 @@ NAV_ITEMS = [
 ]
 
 
-def top_nav(current: str = ""):
-    """Render the sticky top navigation. `current` should match the route_path."""
+def top_nav(current: str = "", show_logout: bool = False):
+    """Render the sticky top navigation. `current` should match the route_path.
+
+    show_logout: when True, append a Sign-out button styled as a nav item.
+                 Clicking submits a form to `/?logout=1` — handled by require_auth.
+    """
     items_html = []
     for path, label, emoji in NAV_ITEMS:
         active = "active" if path == current else ""
@@ -609,12 +622,21 @@ def top_nav(current: str = ""):
             f'<span>{label}</span>'
             f'</a>'
         )
+    logout_html = ""
+    if show_logout:
+        logout_html = (
+            '<a class="nav-item nav-logout" href="?logout=1" target="_self" '
+            'title="Sign out">'
+            '<span class="emoji">🚪</span><span>Sign out</span>'
+            '</a>'
+        )
     nav_html = (
         '<nav class="top-nav">'
         '<div class="brand"><span class="dot"></span>Budget</div>'
         + "".join(items_html)
         + '<div class="nav-spacer"></div>'
-        '<div class="nav-status">LOCAL · 127.0.0.1</div>'
+        + logout_html
+        + '<div class="nav-status">LOCAL · 127.0.0.1</div>'
         '</nav>'
     )
     st.markdown(nav_html, unsafe_allow_html=True)
@@ -632,6 +654,13 @@ def apply_app_chrome(page_title: str = "Budget", page_icon: str = "💰",
         page_title: browser tab title
         page_icon: tab favicon emoji
         current_nav: route path of current page (e.g. '/Dashboard') to highlight in nav
+
+    Side effects:
+        - Sets page config, injects CSS, enables Altair theme.
+        - Enforces authentication via services.auth.require_auth() — if not
+          authenticated, renders login form and st.stop()s the page.
+        - Handles ?logout=1 query param to sign out from any nav link.
+        - Renders top nav with Sign-out item once authenticated.
     """
     st.set_page_config(
         page_title=page_title,
@@ -645,7 +674,24 @@ def apply_app_chrome(page_title: str = "Budget", page_icon: str = "💰",
         alt.themes.register("budget", _budget_altair_theme)
         _THEME_REGISTERED = True
     alt.themes.enable("budget")
-    top_nav(current=current_nav)
+
+    # ── Authentication gate ──
+    # Handle logout query param first (so nav-link click signs us out)
+    try:
+        qp = st.query_params
+        if qp.get("logout") == "1":
+            from services.auth import logout
+            # Clear the query string so refreshing the page doesn't loop-logout
+            st.query_params.clear()
+            logout()  # calls st.rerun()
+    except Exception:
+        pass
+
+    from services.auth import require_auth
+    require_auth()  # st.stop()s if unauthenticated
+
+    # ── Authenticated — render the nav with Sign-out ──
+    top_nav(current=current_nav, show_logout=True)
 
 
 def section_header(emoji: str, title: str, subtitle: Optional[str] = None):

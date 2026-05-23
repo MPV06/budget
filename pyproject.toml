@@ -19,6 +19,7 @@ dependencies = [
   "holidays>=0.45",
   "pandas>=2.2",
   "keyring>=24.0",
+  "bcrypt>=4.1",
 ]
 
 [project.optional-dependencies]
