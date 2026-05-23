@@ -178,14 +178,6 @@ def _render_login(hash_present: bool) -> None:
                     st.error(f"Incorrect password. {remaining} attempt(s) remaining.")
                 st.stop()
 
-        # Footer
-        st.markdown(
-            "<div style='text-align:center; margin-top: 3rem; color: #64748b; "
-            "font-size: 0.8rem;'>30-minute idle timeout · bcrypt-hashed · "
-            f"5 failed attempts → {LOCKOUT_SECONDS // 60}-min lockout</div>",
-            unsafe_allow_html=True,
-        )
-
     st.stop()
 
 

@@ -591,56 +591,71 @@ def _budget_altair_theme():
 
 # ─── NAVIGATION ─────────────────────────────────────────────────────
 # Single source of truth for the nav menu — used by top_nav()
+# Each entry: (route_path, label, emoji, page_file_relative_to_app)
 NAV_ITEMS = [
-    # (route_path, label, emoji)
-    ("/",                 "Home",       "🏠"),
-    ("/Dashboard",        "Dashboard",  "📊"),
-    ("/Bills",            "Bills",      "🧾"),
-    ("/Envelopes",        "Envelopes",  "✉️"),
-    ("/BNPL",             "BNPL",       "💳"),
-    ("/Save",             "Save",       "💎"),
-    ("/Goals",            "Goals",      "🎯"),
-    ("/Emergency_Fund",   "Emergency",  "🛡️"),
-    ("/Debt",             "Debt",       "⚖️"),
-    ("/Transactions",     "Activity",   "📜"),
-    ("/Settings",         "Settings",   "⚙️"),
+    ("/",                 "Home",       "🏠", "app.py"),
+    ("/Dashboard",        "Dashboard",  "📊", "pages/1_Dashboard.py"),
+    ("/Bills",            "Bills",      "🧾", "pages/2_Bills.py"),
+    ("/Envelopes",        "Envelopes",  "✉️", "pages/3_Envelopes.py"),
+    ("/BNPL",             "BNPL",       "💳", "pages/4_BNPL.py"),
+    ("/Save",             "Save",       "💎", "pages/10_Save.py"),
+    ("/Goals",            "Goals",      "🎯", "pages/5_Goals.py"),
+    ("/Emergency_Fund",   "Emergency",  "🛡️", "pages/8_Emergency_Fund.py"),
+    ("/Debt",             "Debt",       "⚖️", "pages/9_Debt.py"),
+    ("/Transactions",     "Activity",   "📜", "pages/6_Transactions.py"),
+    ("/Settings",         "Settings",   "⚙️", "pages/7_Settings.py"),
 ]
 
 
 def top_nav(current: str = "", show_logout: bool = False):
-    """Render the sticky top navigation. `current` should match the route_path.
+    """Render the top navigation using st.button + st.switch_page.
 
-    show_logout: when True, append a Sign-out button styled as a nav item.
-                 Clicking submits a form to `/?logout=1` — handled by require_auth.
+    Why buttons instead of raw <a href> or st.page_link:
+    - Raw anchors trigger a full browser reload that can drop session_state
+      (and thus the auth session).
+    - st.page_link doesn't work for the main entry script (app.py) — it
+      raises KeyError 'url_pathname'.
+    - st.button + st.switch_page works for BOTH main app and pages, and
+      preserves session_state because navigation stays inside Streamlit's runtime.
+
+    show_logout: append a Sign-out button.
     """
-    items_html = []
-    for path, label, emoji in NAV_ITEMS:
-        active = "active" if path == current else ""
-        items_html.append(
-            f'<a class="nav-item {active}" href="{path}" target="_self">'
-            f'<span class="emoji">{emoji}</span>'
-            f'<span>{label}</span>'
-            f'</a>'
-        )
-    logout_html = ""
-    if show_logout:
-        logout_html = (
-            '<a class="nav-item nav-logout" href="?logout=1" target="_self" '
-            'title="Sign out">'
-            '<span class="emoji">🚪</span><span>Sign out</span>'
-            '</a>'
-        )
-    nav_html = (
-        '<nav class="top-nav">'
+    # Brand mark + status row above the nav
+    st.markdown(
+        '<div class="brand-row">'
         '<div class="brand"><span class="dot"></span>Budget</div>'
-        + "".join(items_html)
-        + '<div class="nav-spacer"></div>'
-        + logout_html
-        + '<div class="nav-status">LOCAL · 127.0.0.1</div>'
-        '</nav>'
+        '<div class="nav-status">LOCAL · 127.0.0.1</div>'
+        '</div>',
+        unsafe_allow_html=True,
     )
-    st.markdown(nav_html, unsafe_allow_html=True)
 
+    n_items = len(NAV_ITEMS) + (1 if show_logout else 0)
+    cols = st.columns(n_items, gap="small")
+
+    for i, (path, label, emoji, page_file) in enumerate(NAV_ITEMS):
+        with cols[i]:
+            is_active = (path == current)
+            btn_type = "primary" if is_active else "secondary"
+            if st.button(
+                f"{emoji} {label}",
+                key=f"_nav_{path}",
+                type=btn_type,
+                use_container_width=True,
+            ):
+                # Don't re-switch if already on the page
+                if not is_active:
+                    st.switch_page(page_file)
+
+    if show_logout:
+        with cols[-1]:
+            if st.button(
+                "🚪 Sign out",
+                key="_nav_logout_btn",
+                type="secondary",
+                use_container_width=True,
+            ):
+                from services.auth import logout
+                logout()
 
 # ─── PUBLIC API ─────────────────────────────────────────────────────
 _THEME_REGISTERED = False
