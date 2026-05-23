@@ -7,7 +7,7 @@ from services.bnpl_detector import project_schedule
 from services.db import get_session
 from services.ui_theme import apply_app_chrome
 
-apply_app_chrome("BNPL — Budget", "💳")
+apply_app_chrome("BNPL — Budget", "💳", current_nav="/BNPL")
 st.markdown("# 💳 Buy Now, Pay Later")
 st.caption("Affirm · Chase Pay-in-4 · Klarna · Afterpay installment tracking")
 

@@ -6,7 +6,7 @@ from models.schema import RecurringBill
 from services.db import get_session
 from services.ui_theme import apply_app_chrome
 
-apply_app_chrome("Bills — Budget", "🧾")
+apply_app_chrome("Bills — Budget", "🧾", current_nav="/Bills")
 st.markdown("# 🧾 Bills")
 st.caption("Recurring obligations · Toggle off to see what cutting them saves you")
 

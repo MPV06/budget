@@ -9,7 +9,7 @@ from services.secret_store import (
 )
 from services.ui_theme import apply_app_chrome
 
-apply_app_chrome("Settings — Budget", "⚙️")
+apply_app_chrome("Settings — Budget", "⚙️", current_nav="/Settings")
 st.markdown("# ⚙️ Settings")
 st.caption("Config · Plaid onboarding · Security · Data controls")
 

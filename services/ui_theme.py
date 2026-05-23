@@ -60,6 +60,25 @@ CATEGORICAL_RANGE = [
 # ─── CSS — dark theme with glass-morphism cards ─────────────────────
 _CSS = """
 <style>
+/* ── Webfont: Inter (UI) + JetBrains Mono (numerics) ─────────── */
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500;700&display=swap');
+
+:root {
+    --font-ui: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+    --font-mono: 'JetBrains Mono', 'SF Mono', Menlo, Consolas, monospace;
+}
+
+/* ── HIDE SIDEBAR entirely — top nav replaces it ──────────────── */
+[data-testid="stSidebar"],
+[data-testid="stSidebarNav"],
+[data-testid="stSidebarCollapseButton"],
+[data-testid="collapsedControl"] {
+    display: none !important;
+    visibility: hidden !important;
+    width: 0 !important;
+}
+.main, [data-testid="stAppViewContainer"] > section.main { margin-left: 0 !important; }
+
 /* ── Page background ─────────────────────────────────────────── */
 .stApp, .main {
     background:
@@ -67,8 +86,86 @@ _CSS = """
         radial-gradient(ellipse 900px 700px at 100% 100%, rgba(52, 211, 153, 0.05) 0%, transparent 50%),
         #0a0e27;
     color: #f1f5f9;
+    font-family: var(--font-ui);
 }
-.main > div { padding-top: 1.5rem; }
+
+/* Reduce default main padding now that we have top nav */
+.main .block-container {
+    padding-top: 1rem !important;
+    padding-bottom: 4rem !important;
+    max-width: 1480px;
+}
+
+/* ── Top nav bar ─────────────────────────────────────────────── */
+.top-nav {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    padding: 10px 16px;
+    margin: -1rem -1rem 1.25rem -1rem;
+    background: rgba(10, 14, 39, 0.85);
+    backdrop-filter: blur(16px) saturate(180%);
+    -webkit-backdrop-filter: blur(16px) saturate(180%);
+    border-bottom: 1px solid rgba(37, 43, 77, 0.7);
+    position: sticky;
+    top: 0;
+    z-index: 999;
+}
+.top-nav .brand {
+    font-family: var(--font-ui);
+    font-size: 1.05rem;
+    font-weight: 700;
+    color: #f1f5f9;
+    letter-spacing: -0.02em;
+    margin-right: 18px;
+    padding: 6px 10px;
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+}
+.top-nav .brand .dot {
+    width: 8px; height: 8px; border-radius: 999px;
+    background: #34d399;
+    box-shadow: 0 0 8px rgba(52, 211, 153, 0.7);
+}
+.top-nav a.nav-item {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 7px 12px;
+    border-radius: 8px;
+    font-family: var(--font-ui);
+    font-size: 0.875rem;
+    font-weight: 500;
+    color: #94a3b8 !important;
+    text-decoration: none !important;
+    transition: all 140ms ease;
+    border: 1px solid transparent;
+}
+.top-nav a.nav-item:hover {
+    color: #f1f5f9 !important;
+    background: rgba(59, 65, 120, 0.4);
+}
+.top-nav a.nav-item.active {
+    color: #34d399 !important;
+    background: rgba(52, 211, 153, 0.10);
+    border-color: rgba(52, 211, 153, 0.3);
+}
+.top-nav a.nav-item .emoji {
+    font-size: 0.95rem;
+    filter: saturate(1.2);
+}
+.top-nav .nav-spacer { flex: 1; }
+.top-nav .nav-status {
+    font-family: var(--font-mono);
+    font-size: 0.7rem;
+    color: #64748b;
+    padding: 4px 10px;
+    border-radius: 999px;
+    background: rgba(28, 34, 69, 0.6);
+    border: 1px solid #252b4d;
+    letter-spacing: 0.04em;
+}
 
 /* ── Typography ──────────────────────────────────────────────── */
 html, body, [class*="css"], [data-testid="stMarkdownContainer"],
@@ -76,6 +173,7 @@ html, body, [class*="css"], [data-testid="stMarkdownContainer"],
 [data-testid="stMarkdownContainer"] li,
 [data-testid="stMarkdownContainer"] span {
     color: #e2e8f0 !important;
+    font-family: var(--font-ui);
     font-feature-settings: "tnum" 1, "cv11" 1;
 }
 [data-testid="stCaptionContainer"], small {
@@ -90,16 +188,25 @@ html, body, [class*="css"], [data-testid="stMarkdownContainer"],
     font-variant-numeric: tabular-nums;
 }
 
-/* Headings — balance + dim title for hierarchy */
+/* Headings — Inter at refined sizes/weights */
 h1, h2, h3, h4 {
+    font-family: var(--font-ui) !important;
     text-wrap: balance;
-    letter-spacing: -0.02em;
+    letter-spacing: -0.025em;
     color: #f1f5f9 !important;
+    line-height: 1.2;
 }
-h1 { font-weight: 700; font-size: 2rem; }
-h2 { font-weight: 650; font-size: 1.5rem; }
-h3 { font-weight: 600; font-size: 1.25rem; }
-h4 { font-weight: 600; font-size: 1.05rem; color: #cbd5e1 !important; }
+h1 { font-weight: 800; font-size: 2.25rem; margin-bottom: 0.25rem; }
+h2 { font-weight: 700; font-size: 1.625rem; margin-top: 1.5rem; }
+h3 { font-weight: 650; font-size: 1.25rem; color: #e2e8f0 !important; }
+h4 { font-weight: 600; font-size: 1rem; color: #cbd5e1 !important; letter-spacing: -0.015em; }
+
+/* Numerical strings use JetBrains Mono for crisper alignment */
+[data-testid="stMetricValue"] > div,
+.kpi-card .value {
+    font-family: var(--font-mono) !important;
+    font-feature-settings: "tnum" 1, "zero" 1;
+}
 
 /* ── Metric cards — glass-morphism with gradient border ────── */
 [data-testid="stMetric"] {
@@ -473,19 +580,72 @@ def _budget_altair_theme():
     }
 
 
+# ─── NAVIGATION ─────────────────────────────────────────────────────
+# Single source of truth for the nav menu — used by top_nav()
+NAV_ITEMS = [
+    # (route_path, label, emoji)
+    ("/",                 "Home",       "🏠"),
+    ("/Dashboard",        "Dashboard",  "📊"),
+    ("/Bills",            "Bills",      "🧾"),
+    ("/Envelopes",        "Envelopes",  "✉️"),
+    ("/BNPL",             "BNPL",       "💳"),
+    ("/Save",             "Save",       "💎"),
+    ("/Goals",            "Goals",      "🎯"),
+    ("/Emergency_Fund",   "Emergency",  "🛡️"),
+    ("/Debt",             "Debt",       "⚖️"),
+    ("/Transactions",     "Activity",   "📜"),
+    ("/Settings",         "Settings",   "⚙️"),
+]
+
+
+def top_nav(current: str = ""):
+    """Render the sticky top navigation. `current` should match the route_path."""
+    items_html = []
+    for path, label, emoji in NAV_ITEMS:
+        active = "active" if path == current else ""
+        items_html.append(
+            f'<a class="nav-item {active}" href="{path}" target="_self">'
+            f'<span class="emoji">{emoji}</span>'
+            f'<span>{label}</span>'
+            f'</a>'
+        )
+    nav_html = (
+        '<nav class="top-nav">'
+        '<div class="brand"><span class="dot"></span>Budget</div>'
+        + "".join(items_html)
+        + '<div class="nav-spacer"></div>'
+        '<div class="nav-status">LOCAL · 127.0.0.1</div>'
+        '</nav>'
+    )
+    st.markdown(nav_html, unsafe_allow_html=True)
+
+
 # ─── PUBLIC API ─────────────────────────────────────────────────────
 _THEME_REGISTERED = False
 
 
-def apply_app_chrome(page_title: str = "Budget", page_icon: str = "💰"):
-    """Call at the top of every page. Sets page config, injects CSS, enables Altair theme."""
-    st.set_page_config(page_title=page_title, page_icon=page_icon, layout="wide")
+def apply_app_chrome(page_title: str = "Budget", page_icon: str = "💰",
+                     current_nav: str = ""):
+    """Call at the top of every page.
+
+    Args:
+        page_title: browser tab title
+        page_icon: tab favicon emoji
+        current_nav: route path of current page (e.g. '/Dashboard') to highlight in nav
+    """
+    st.set_page_config(
+        page_title=page_title,
+        page_icon=page_icon,
+        layout="wide",
+        initial_sidebar_state="collapsed",  # double-belt: also hidden via CSS
+    )
     st.markdown(_CSS, unsafe_allow_html=True)
     global _THEME_REGISTERED
     if not _THEME_REGISTERED:
         alt.themes.register("budget", _budget_altair_theme)
         _THEME_REGISTERED = True
     alt.themes.enable("budget")
+    top_nav(current=current_nav)
 
 
 def section_header(emoji: str, title: str, subtitle: Optional[str] = None):

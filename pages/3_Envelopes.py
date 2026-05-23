@@ -12,7 +12,7 @@ from services.envelope_data import current_period_spend, monthly_totals_for_enve
 from services.paycheck_calendar import generate_paycheck_dates, next_paycheck_after
 from services.ui_theme import apply_app_chrome
 
-apply_app_chrome("Envelopes — Budget", "✉️")
+apply_app_chrome("Envelopes — Budget", "✉️", current_nav="/Envelopes")
 st.markdown("# ✉️ Envelopes")
 st.caption("Variable-category budgets · Groceries · Restaurants · Gas")
 

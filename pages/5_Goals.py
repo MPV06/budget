@@ -20,7 +20,7 @@ from services.db import get_session
 from services.savings_goal import build_plan, required_monthly_savings, months_until
 from services.ui_theme import apply_app_chrome
 
-apply_app_chrome("Goals — Budget", "🎯")
+apply_app_chrome("Goals — Budget", "🎯", current_nav="/Goals")
 st.markdown("# 🎯 Savings Goals")
 st.caption(
     "Per the savings-goals standard: fund in **priority order** — emergency fund first, "

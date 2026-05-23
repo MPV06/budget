@@ -12,7 +12,7 @@ from services.debt_payoff import (
 )
 from services.ui_theme import apply_app_chrome
 
-apply_app_chrome("Debt — Budget", "⚖️")
+apply_app_chrome("Debt — Budget", "⚖️", current_nav="/Debt")
 st.markdown("# ⚖️ Debt")
 st.caption(
     "Track debts, compare avalanche (mathematically optimal) vs snowball "

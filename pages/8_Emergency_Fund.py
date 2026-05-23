@@ -9,7 +9,7 @@ from services.db import get_session
 from services.emergency_fund import size_emergency_fund, months_of_runway
 from services.ui_theme import apply_app_chrome
 
-apply_app_chrome("Emergency Fund — Budget", "🛡️")
+apply_app_chrome("Emergency Fund — Budget", "🛡️", current_nav="/Emergency_Fund")
 st.markdown("# 🛡️ Emergency Fund")
 st.caption(
     "3–6 months of *essential* expenses (housing, food, utilities, insurance, "

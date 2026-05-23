@@ -5,7 +5,7 @@ from services.config import get_settings
 from services.db import get_engine
 from services.ui_theme import apply_app_chrome, section_header, render_status_pill
 
-apply_app_chrome("Budget", "💰")
+apply_app_chrome("Budget", "💰", current_nav="/")
 
 st.markdown("# 💰 Budget")
 st.caption("Local personal-finance tracker · Plaid (Chase, read-only) · 100% on your machine")

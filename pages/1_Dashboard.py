@@ -11,7 +11,7 @@ from services.paycheck_calendar import generate_paycheck_dates, next_paycheck_af
 from services.paycheck_view import build_paycheck_breakdowns, average_guilt_free
 from services.ui_theme import apply_app_chrome, PALETTE as _P, section, kpi_card
 
-apply_app_chrome("Dashboard — Budget", "📊")
+apply_app_chrome("Dashboard — Budget", "📊", current_nav="/Dashboard")
 
 # Back-compat alias for the rest of this file (used in chart code below)
 PALETTE = {

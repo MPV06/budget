@@ -6,7 +6,7 @@ from models.schema import Transaction, Envelope
 from services.db import get_session
 from services.ui_theme import apply_app_chrome
 
-apply_app_chrome("Transactions — Budget", "📜")
+apply_app_chrome("Transactions — Budget", "📜", current_nav="/Transactions")
 st.markdown("# 📜 Transactions")
 st.caption("Last 500 Plaid-synced transactions · Searchable by merchant")
 

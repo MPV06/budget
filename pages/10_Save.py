@@ -13,7 +13,7 @@ from services.savings_summary import (
 )
 from services.ui_theme import apply_app_chrome, PALETTE as _P
 
-apply_app_chrome("Save — Budget", "💎")
+apply_app_chrome("Save — Budget", "💎", current_nav="/Save")
 
 # Palette — pulled from shared theme
 SAVINGS_GREEN = _P["savings"]
