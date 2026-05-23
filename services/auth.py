@@ -19,6 +19,12 @@ from typing import Optional
 
 import bcrypt
 import streamlit as st
+from dotenv import load_dotenv
+
+# Load .env once at import time so `os.environ` includes APP_PASSWORD_HASH
+# (Streamlit does NOT auto-read .env — only pydantic-settings does that for
+# the Settings class. This module reads os.environ directly.)
+load_dotenv()
 
 
 # ─── Constants ──────────────────────────────────────────────────────
