@@ -33,14 +33,37 @@ with get_session() as session:
     else:
         st.info("Nothing pending.")
 
-    st.subheader(f"Active bills ({len([b for b in confirmed if b.is_active])})")
-    rows = [{
-        "name": b.display_name, "amount": b.amount, "cadence": b.cadence,
-        "next_due": b.next_due_date, "category": b.category,
-        "source": b.source, "active": b.is_active,
-    } for b in confirmed]
-    if rows:
-        st.dataframe(pd.DataFrame(rows), use_container_width=True, hide_index=True)
+    active = [b for b in confirmed if b.is_active]
+    st.subheader(f"Active bills ({len(active)})")
+    for b in active:
+        with st.expander(f"{b.display_name} — ${b.amount:,.2f} {b.cadence} (next: {b.next_due_date})"):
+            with st.form(f"edit_{b.id}"):
+                name = st.text_input("Name", value=b.display_name)
+                amount = st.number_input("Amount", min_value=0.0, step=1.0, value=float(b.amount))
+                cadences = ["weekly", "biweekly", "semi_monthly", "monthly", "annual"]
+                cadence = st.selectbox("Cadence", cadences,
+                                       index=cadences.index(b.cadence) if b.cadence in cadences else 3)
+                next_due = st.date_input("Next due date", value=b.next_due_date)
+                buckets = ["needs", "wants", "savings"]
+                category = st.selectbox("50/30/20 bucket", buckets,
+                                        index=buckets.index(b.category) if b.category in buckets else 0)
+                c1, c2 = st.columns(2)
+                if c1.form_submit_button("Save changes"):
+                    b.display_name = name
+                    b.merchant_name = name
+                    b.amount = amount
+                    b.cadence = cadence
+                    b.next_due_date = next_due
+                    b.category = category
+                    session.add(b); session.commit()
+                    st.success("Saved.")
+                    st.rerun()
+                if c2.form_submit_button("Delete bill", type="secondary"):
+                    session.delete(b); session.commit()
+                    st.success("Deleted.")
+                    st.rerun()
+    if not active:
+        st.info("No active bills yet.")
 
     st.subheader("Add manual bill")
     with st.form("add_bill"):
