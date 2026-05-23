@@ -4,8 +4,6 @@ Uses Streamlit's AppTest harness — executes the script in-process and reports
 any uncaught exception. Does NOT verify rendering output, just that nothing
 crashes during the initial run.
 """
-import os
-from pathlib import Path
 
 import pytest
 from streamlit.testing.v1 import AppTest
