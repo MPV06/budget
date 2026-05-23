@@ -96,76 +96,32 @@ _CSS = """
     max-width: 1480px;
 }
 
-/* ── Top nav bar ─────────────────────────────────────────────── */
-.top-nav {
+/* ── Brand row (above nav buttons) ───────────────────────────── */
+.brand-row {
     display: flex;
     align-items: center;
-    gap: 4px;
-    padding: 10px 16px;
-    margin: -1rem -1rem 1.25rem -1rem;
-    background: rgba(10, 14, 39, 0.85);
-    backdrop-filter: blur(16px) saturate(180%);
-    -webkit-backdrop-filter: blur(16px) saturate(180%);
-    border-bottom: 1px solid rgba(37, 43, 77, 0.7);
-    position: sticky;
-    top: 0;
-    z-index: 999;
+    gap: 16px;
+    padding: 4px 6px 12px 6px;
+    margin-bottom: 4px;
+    border-bottom: 1px solid rgba(37, 43, 77, 0.4);
 }
-.top-nav .brand {
+.brand-row .brand {
     font-family: var(--font-ui);
-    font-size: 1.05rem;
+    font-size: 1.1rem;
     font-weight: 700;
     color: #f1f5f9;
     letter-spacing: -0.02em;
-    margin-right: 18px;
-    padding: 6px 10px;
     display: inline-flex;
     align-items: center;
     gap: 8px;
 }
-.top-nav .brand .dot {
+.brand-row .brand .dot {
     width: 8px; height: 8px; border-radius: 999px;
     background: #34d399;
-    box-shadow: 0 0 8px rgba(52, 211, 153, 0.7);
+    box-shadow: 0 0 10px rgba(52, 211, 153, 0.8);
 }
-.top-nav a.nav-item {
-    display: inline-flex;
-    align-items: center;
-    gap: 6px;
-    padding: 7px 12px;
-    border-radius: 8px;
-    font-family: var(--font-ui);
-    font-size: 0.875rem;
-    font-weight: 500;
-    color: #94a3b8 !important;
-    text-decoration: none !important;
-    transition: all 140ms ease;
-    border: 1px solid transparent;
-}
-.top-nav a.nav-item:hover {
-    color: #f1f5f9 !important;
-    background: rgba(59, 65, 120, 0.4);
-}
-.top-nav a.nav-item.active {
-    color: #34d399 !important;
-    background: rgba(52, 211, 153, 0.10);
-    border-color: rgba(52, 211, 153, 0.3);
-}
-.top-nav a.nav-item.nav-logout {
-    color: #94a3b8 !important;
-    margin-left: 4px;
-}
-.top-nav a.nav-item.nav-logout:hover {
-    color: #f87171 !important;
-    background: rgba(248, 113, 113, 0.10);
-    border-color: rgba(248, 113, 113, 0.3);
-}
-.top-nav a.nav-item .emoji {
-    font-size: 0.95rem;
-    filter: saturate(1.2);
-}
-.top-nav .nav-spacer { flex: 1; }
-.top-nav .nav-status {
+.brand-row .nav-status {
+    margin-left: auto;
     font-family: var(--font-mono);
     font-size: 0.7rem;
     color: #64748b;
@@ -174,6 +130,47 @@ _CSS = """
     background: rgba(28, 34, 69, 0.6);
     border: 1px solid #252b4d;
     letter-spacing: 0.04em;
+}
+
+/* ── Nav buttons (button + columns row immediately after brand-row) ──
+   Targets the FIRST stHorizontalBlock on the page (which is the nav).
+   Keeps form/page buttons elsewhere unchanged. */
+[data-testid="stHorizontalBlock"]:first-of-type .stButton button {
+    padding: 8px 10px !important;
+    font-size: 0.82rem !important;
+    font-weight: 500 !important;
+    min-height: 38px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    line-height: 1.2;
+    border-radius: 8px !important;
+    background: transparent !important;
+    border: 1px solid transparent !important;
+    color: #94a3b8 !important;
+    box-shadow: none !important;
+}
+[data-testid="stHorizontalBlock"]:first-of-type .stButton button:hover {
+    color: #f1f5f9 !important;
+    background: rgba(59, 65, 120, 0.4) !important;
+    border-color: rgba(59, 65, 120, 0.6) !important;
+    transform: none;
+}
+[data-testid="stHorizontalBlock"]:first-of-type .stButton button[kind="primary"] {
+    background: rgba(52, 211, 153, 0.12) !important;
+    border: 1px solid rgba(52, 211, 153, 0.35) !important;
+    color: #34d399 !important;
+    box-shadow: 0 0 10px -2px rgba(52, 211, 153, 0.3) !important;
+}
+[data-testid="stHorizontalBlock"]:first-of-type .stButton button[kind="primary"]:hover {
+    background: rgba(52, 211, 153, 0.18) !important;
+    color: #4ade80 !important;
+}
+/* Sign-out button (always last in the nav row) — red on hover */
+[data-testid="stHorizontalBlock"]:first-of-type .stButton:last-child button:hover {
+    color: #f87171 !important;
+    background: rgba(248, 113, 113, 0.10) !important;
+    border-color: rgba(248, 113, 113, 0.35) !important;
 }
 
 /* ── Typography ──────────────────────────────────────────────── */
