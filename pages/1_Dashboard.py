@@ -34,14 +34,21 @@ np_ = next_paycheck_after(today, cal)
 later = [p for p in cal if p.actual_deposit_date > np_.actual_deposit_date]
 period_end = later[0].actual_deposit_date if later else np_.actual_deposit_date
 
+# Build a 12-month calendar once (cached via lru_cache); we'll slice it for n=4 view
+long_cal = generate_paycheck_dates(start=date(today.year, today.month, 1), months=12)
+
+# Single session for ALL DB reads on this page — was previously 3 separate sessions
 with get_session() as session:
     view = build_dashboard_view(
         session, today=today, next_paycheck=np_.actual_deposit_date,
         paycheck_amount=s.paycheck_net_amount, period_end=period_end,
     )
-    breakdowns = build_paycheck_breakdowns(
-        session, cal, today=today, paycheck_amount=s.paycheck_net_amount, n=4,
+    # Build 12 breakdowns ONCE; reuse for both the 4-paycheck overview and the
+    # 12-paycheck projection chart further down. Previously we ran this twice.
+    long_breakdowns = build_paycheck_breakdowns(
+        session, long_cal, today=today, paycheck_amount=s.paycheck_net_amount, n=12,
     )
+    breakdowns = long_breakdowns[:4]
 
 avg_gf = average_guilt_free(breakdowns)
 
@@ -283,13 +290,7 @@ if breakdowns:
     # ── LINE: cumulative guilt-free / savings projection over next 12 paychecks ──
     with line_col:
         st.markdown("**Cumulative savings projection (12 paychecks)**")
-        # Build longer schedule for projection
-        long_cal = generate_paycheck_dates(start=date(today.year, today.month, 1), months=12)
-        with get_session() as sess2:
-            long_breakdowns = build_paycheck_breakdowns(
-                sess2, long_cal, today=today,
-                paycheck_amount=s.paycheck_net_amount, n=12,
-            )
+        # Reuses long_breakdowns computed at the top of the page (no new query)
         if long_breakdowns:
             cum_rows = []
             running = 0.0
