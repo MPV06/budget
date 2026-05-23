@@ -88,14 +88,15 @@ if breakdowns:
             {"paycheck": label, "category": "Bills", "amount": b.bills_total, "order": 1},
             {"paycheck": label, "category": "BNPL", "amount": b.bnpl_total, "order": 2},
             {"paycheck": label, "category": "Envelopes", "amount": b.envelopes_allocated, "order": 3},
+            {"paycheck": label, "category": "Savings", "amount": b.savings_total, "order": 4},
             {"paycheck": label, "category": "Guilt-free",
-             "amount": max(0, b.guilt_free), "order": 4},
+             "amount": max(0, b.guilt_free), "order": 5},
         ])
     chart_df = pd.DataFrame(chart_rows)
 
     color_scale = alt.Scale(
-        domain=["Bills", "BNPL", "Envelopes", "Guilt-free"],
-        range=["#ef4444", "#f97316", "#eab308", "#22c55e"],
+        domain=["Bills", "BNPL", "Envelopes", "Savings", "Guilt-free"],
+        range=["#ef4444", "#f97316", "#eab308", "#10b981", "#22c55e"],
     )
     chart = (
         alt.Chart(chart_df)
@@ -105,7 +106,7 @@ if breakdowns:
             y=alt.Y("paycheck:N", title="Paycheck (deposit date)",
                     sort=[b.deposit_date.strftime("%b %d") for b in breakdowns]),
             color=alt.Color("category:N", scale=color_scale,
-                            sort=["Bills", "BNPL", "Envelopes", "Guilt-free"],
+                            sort=["Bills", "BNPL", "Envelopes", "Savings", "Guilt-free"],
                             legend=alt.Legend(title="Allocation")),
             order=alt.Order("order:Q"),
             tooltip=["paycheck", "category", alt.Tooltip("amount:Q", format="$,.2f")],
@@ -138,11 +139,13 @@ if breakdowns:
         avg_bills = sum(b.bills_total for b in breakdowns) / len(breakdowns)
         avg_bnpl = sum(b.bnpl_total for b in breakdowns) / len(breakdowns)
         avg_env = sum(b.envelopes_allocated for b in breakdowns) / len(breakdowns)
+        avg_sav = sum(b.savings_total for b in breakdowns) / len(breakdowns)
         avg_gf_pos = max(0, avg_gf)
         donut_data = pd.DataFrame([
             {"category": "Bills", "amount": avg_bills},
             {"category": "BNPL", "amount": avg_bnpl},
             {"category": "Envelopes", "amount": avg_env},
+            {"category": "Savings", "amount": avg_sav},
             {"category": "Guilt-free", "amount": avg_gf_pos},
         ])
         donut_data = donut_data[donut_data["amount"] > 0]
@@ -155,9 +158,10 @@ if breakdowns:
                 color=alt.Color(
                     "category:N",
                     scale=alt.Scale(
-                        domain=["Bills", "BNPL", "Envelopes", "Guilt-free"],
+                        domain=["Bills", "BNPL", "Envelopes", "Savings", "Guilt-free"],
                         range=[PALETTE["Bills"], PALETTE["BNPL"],
-                               PALETTE["Envelopes"], PALETTE["Guilt-free"]],
+                               PALETTE["Envelopes"], PALETTE["Savings"],
+                               PALETTE["Guilt-free"]],
                     ),
                     legend=alt.Legend(title="Category", orient="bottom"),
                 ),
@@ -261,6 +265,9 @@ for i, b in enumerate(breakdowns):
         for env in b.envelopes:
             rows.append({"category": "Envelopes", "item": env.label,
                          "due": None, "amount": -env.amount})
+        for sav in b.savings:
+            rows.append({"category": "💎 Savings", "item": sav.label,
+                         "due": sav.due_date, "amount": -sav.amount})
 
         df = pd.DataFrame(rows)
         if not df.empty:
@@ -277,14 +284,15 @@ for i, b in enumerate(breakdowns):
             {"line": f"Bills ({len(b.bills)} items)", "amount": f"−${b.bills_total:,.2f}"},
             {"line": f"BNPL ({len(b.bnpl)} items)", "amount": f"−${b.bnpl_total:,.2f}"},
             {"line": f"Envelopes ({len(b.envelopes)} items)", "amount": f"−${b.envelopes_allocated:,.2f}"},
+            {"line": f"💎 Savings ({len(b.savings)} items)", "amount": f"−${b.savings_total:,.2f}"},
             {"line": "── TOTAL OBLIGATIONS ──", "amount": f"−${b.obligations_total:,.2f}"},
             {"line": "💰 GUILT-FREE LEFT", "amount": f"${b.guilt_free:,.2f}"},
         ]
         st.dataframe(pd.DataFrame(sub_rows), use_container_width=True, hide_index=True)
 
-        # ── Per-category detail tables ──
-        col_left, col_mid, col_right = st.columns(3)
-        with col_left:
+        # ── Per-category detail tables — now 4 columns ──
+        col_a, col_b, col_c, col_d = st.columns(4)
+        with col_a:
             st.markdown(f"**Bills · ${b.bills_total:,.2f}**")
             if b.bills:
                 st.dataframe(pd.DataFrame([
@@ -293,7 +301,7 @@ for i, b in enumerate(breakdowns):
                 ]), use_container_width=True, hide_index=True)
             else:
                 st.caption("No bills this paycheck.")
-        with col_mid:
+        with col_b:
             st.markdown(f"**BNPL · ${b.bnpl_total:,.2f}**")
             if b.bnpl:
                 st.dataframe(pd.DataFrame([
@@ -302,7 +310,7 @@ for i, b in enumerate(breakdowns):
                 ]), use_container_width=True, hide_index=True)
             else:
                 st.caption("No BNPL this paycheck.")
-        with col_right:
+        with col_c:
             st.markdown(f"**Envelopes · ${b.envelopes_allocated:,.2f}**")
             if b.envelopes:
                 st.dataframe(pd.DataFrame([
@@ -311,6 +319,15 @@ for i, b in enumerate(breakdowns):
                 ]), use_container_width=True, hide_index=True)
             else:
                 st.caption("No envelopes set up.")
+        with col_d:
+            st.markdown(f"**💎 Savings · ${b.savings_total:,.2f}**")
+            if b.savings:
+                st.dataframe(pd.DataFrame([
+                    {"name": x.label, "amount": f"${x.amount:,.2f}"}
+                    for x in b.savings
+                ]), use_container_width=True, hide_index=True)
+            else:
+                st.caption("No savings transfers — add some on the Save tab.")
 
 st.markdown("---")
 

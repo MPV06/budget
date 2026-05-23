@@ -63,6 +63,38 @@ def test_semi_monthly_appears_exactly_once_per_paycheck(session):
         assert len(b.bills) == 1, f"Period {i} should have exactly 1 bill"
 
 
+def test_savings_bills_split_into_savings_field(session):
+    """Bills with category='savings' should go into the savings field, not bills.
+    Both still subtract from guilt_free — math is unchanged, but the UI can show
+    savings separately."""
+    session.add(RecurringBill(
+        source="manual", merchant_name="Save", display_name="Save",
+        amount=500, cadence="semi_monthly",
+        next_due_date=date(2026, 5, 29), category="savings",
+        is_active=True, confirmed_by_user=True,
+    ))
+    session.add(RecurringBill(
+        source="manual", merchant_name="Rent", display_name="Rent",
+        amount=660, cadence="monthly",
+        next_due_date=date(2026, 6, 1), category="needs",
+        is_active=True, confirmed_by_user=True,
+    ))
+    session.commit()
+
+    breakdowns = build_paycheck_breakdowns(
+        session, SCHEDULE, today=date(2026, 5, 16),
+        paycheck_amount=2890, n=2,
+    )
+    # First period: Rent ($660) + Save ($500)
+    b = breakdowns[0]
+    assert b.bills_total == 660.0, "Rent should be the only non-savings bill"
+    assert b.savings_total == 500.0, "Save should appear in savings, not bills"
+    assert b.obligations_total == 1160.0  # bills + savings + bnpl + envelopes
+    assert b.guilt_free == 2890 - 1160  # 1730
+    assert len(b.savings) == 1
+    assert b.savings[0].label == "Save"
+
+
 def test_recurring_rent_appears_in_both_months_of_paychecks(session):
     """Critical: monthly rent should appear once per month across all paychecks,
     not just the very next due date."""

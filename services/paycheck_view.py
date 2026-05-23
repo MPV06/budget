@@ -64,7 +64,7 @@ class LineItem:
     label: str
     amount: float
     due_date: date
-    kind: str  # 'bill' | 'bnpl' | 'envelope'
+    kind: str  # 'bill' | 'bnpl' | 'envelope' | 'savings'
 
 
 @dataclass
@@ -74,9 +74,10 @@ class PaycheckBreakdown:
     period_start: date           # = deposit_date (or today if before first paycheck)
     period_end: date             # = next paycheck's deposit_date
     paycheck_amount: float
-    bills: List[LineItem] = field(default_factory=list)
+    bills: List[LineItem] = field(default_factory=list)         # category != 'savings'
     bnpl: List[LineItem] = field(default_factory=list)
     envelopes: List[LineItem] = field(default_factory=list)
+    savings: List[LineItem] = field(default_factory=list)       # category == 'savings'
 
     @property
     def bills_total(self) -> float:
@@ -91,8 +92,16 @@ class PaycheckBreakdown:
         return round(sum(e.amount for e in self.envelopes), 2)
 
     @property
+    def savings_total(self) -> float:
+        return round(sum(s.amount for s in self.savings), 2)
+
+    @property
     def obligations_total(self) -> float:
-        return round(self.bills_total + self.bnpl_total + self.envelopes_allocated, 2)
+        return round(
+            self.bills_total + self.bnpl_total
+            + self.envelopes_allocated + self.savings_total,
+            2,
+        )
 
     @property
     def guilt_free(self) -> float:
@@ -144,18 +153,22 @@ def build_paycheck_breakdowns(
         end = next_p.actual_deposit_date
 
         period_bills = []
+        period_savings = []
         for b in bills:
             cadence = (b.cadence or "monthly").lower()
+            kind = "savings" if (b.category or "").lower() == "savings" else "bill"
+            bucket = period_savings if kind == "savings" else period_bills
+
             if cadence in PER_PAYCHECK_CADENCES:
                 # Always emit exactly one instance per paycheck period.
-                period_bills.append(LineItem(
-                    label=b.display_name, amount=b.amount, due_date=start, kind="bill",
+                bucket.append(LineItem(
+                    label=b.display_name, amount=b.amount, due_date=start, kind=kind,
                 ))
             else:
                 instances = project_bill_instances(b.next_due_date, cadence, start, end)
                 for d in instances:
-                    period_bills.append(LineItem(
-                        label=b.display_name, amount=b.amount, due_date=d, kind="bill",
+                    bucket.append(LineItem(
+                        label=b.display_name, amount=b.amount, due_date=d, kind=kind,
                     ))
         period_bnpl = [
             LineItem(label=f"BNPL #{i_.installment_number}", amount=i_.amount,
@@ -184,6 +197,7 @@ def build_paycheck_breakdowns(
             bills=sorted(period_bills, key=lambda x: x.due_date),
             bnpl=sorted(period_bnpl, key=lambda x: x.due_date),
             envelopes=period_envelopes,
+            savings=sorted(period_savings, key=lambda x: x.due_date),
         ))
     return out
 
