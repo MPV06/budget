@@ -1,12 +1,11 @@
-"""Unified UI theme: CSS injection + Altair chart theme + reusable components.
+"""Unified UI theme: dark-mode CSS + Altair chart theme + reusable components.
 
+Reference aesthetic: pulsechainstats.com (deep navy, glass-morphism cards, glowing accents).
 Synthesizes:
   - web-design-guidelines (Vercel): tabular-nums, text-wrap balance, ellipsis (…),
-    keyboard focus, reduced-motion, semantic colors
-  - scientific-visualization: colorblind-safe palette, despined charts,
-    consistent typography, no chart junk
-  - finance-psychology: avoid 'budget' framing, positive language for savings,
-    color discipline that doesn't shame negative numbers
+    keyboard focus, reduced-motion, semantic colors, high contrast
+  - scientific-visualization: colorblind-safe palette, despined charts, no chart junk
+  - finance-psychology: positive color discipline (no shaming negative numbers)
 
 Call `apply_app_chrome()` at the top of every page.
 """
@@ -18,31 +17,37 @@ import streamlit as st
 
 
 # ─── PALETTE ────────────────────────────────────────────────────────
-# Anchored on emerald (savings/positive). Categorical colors are warm
-# and distinguishable by all common types of color blindness (Okabe-Ito-adjacent).
+# Dark-mode brighter accents (400-level Tailwind) so they pop on navy
 PALETTE = {
-    # Categorical (charts, badges)
-    "income":     "#3b82f6",   # blue 500
-    "bills":      "#ef4444",   # red 500
-    "bnpl":       "#f97316",   # orange 500
-    "envelopes":  "#eab308",   # yellow 500
-    "savings":    "#10b981",   # emerald 500 — primary accent
-    "guilt_free": "#22c55e",   # green 500
+    # Categorical (charts, badges) — brighter for dark backgrounds
+    "income":     "#60a5fa",   # blue-400
+    "bills":      "#f87171",   # red-400
+    "bnpl":       "#fb923c",   # orange-400
+    "envelopes":  "#fbbf24",   # amber-400
+    "savings":    "#34d399",   # emerald-400 — primary accent
+    "guilt_free": "#4ade80",   # green-400
+    "violet":     "#a78bfa",   # violet-400 (highlights / glow)
+    "cyan":       "#22d3ee",   # cyan-400 (secondary highlights)
 
     # Semantic (status badges, alerts)
-    "ok":      "#10b981",
-    "warn":    "#f59e0b",      # amber 500
-    "over":    "#ef4444",
-    "muted":   "#64748b",      # slate 500
+    "ok":      "#34d399",
+    "warn":    "#fbbf24",
+    "over":    "#f87171",
+    "muted":   "#64748b",
 
-    # Surface (cards, dividers)
-    "surface":         "#ffffff",
-    "surface_subtle":  "#f8fafc",   # slate-50
-    "surface_2":       "#f1f5f9",   # slate-100
-    "border":          "#e2e8f0",   # slate-200
-    "text_primary":    "#0f172a",   # slate-900
-    "text_secondary":  "#475569",   # slate-600
-    "text_muted":      "#94a3b8",   # slate-400
+    # Surface (dark hierarchy)
+    "bg":              "#0a0e27",   # page background — deep navy
+    "surface":         "#141936",   # cards / panels
+    "surface_2":       "#1c2245",   # elevated cards
+    "surface_3":       "#252b4d",   # hover state
+    "border":          "#252b4d",   # subtle borders
+    "border_bright":   "#3b4178",   # accent borders
+
+    # Text
+    "text_primary":    "#f1f5f9",   # slate-100 — high contrast
+    "text_secondary":  "#94a3b8",   # slate-400
+    "text_muted":      "#64748b",   # slate-500
+    "text_dim":        "#475569",   # slate-600 — backgrounds/disabled
 }
 
 CATEGORICAL_DOMAIN = ["Bills", "BNPL", "Envelopes", "Savings", "Guilt-free"]
@@ -52,152 +57,341 @@ CATEGORICAL_RANGE = [
 ]
 
 
-# ─── CSS — injected once per page via apply_app_chrome() ────────────
+# ─── CSS — dark theme with glass-morphism cards ─────────────────────
 _CSS = """
 <style>
-/* ── Typography ───────────────────────────────────────────────── */
-html, body, [class*="css"], [data-testid="stMarkdownContainer"] {
-    font-feature-settings: "tnum" 1, "cv11" 1;  /* tabular nums + Inter alt 1 */
+/* ── Page background ─────────────────────────────────────────── */
+.stApp, .main {
+    background:
+        radial-gradient(ellipse 1200px 800px at 0% 0%, rgba(167, 139, 250, 0.06) 0%, transparent 50%),
+        radial-gradient(ellipse 900px 700px at 100% 100%, rgba(52, 211, 153, 0.05) 0%, transparent 50%),
+        #0a0e27;
+    color: #f1f5f9;
+}
+.main > div { padding-top: 1.5rem; }
+
+/* ── Typography ──────────────────────────────────────────────── */
+html, body, [class*="css"], [data-testid="stMarkdownContainer"],
+[data-testid="stMarkdownContainer"] p,
+[data-testid="stMarkdownContainer"] li,
+[data-testid="stMarkdownContainer"] span {
+    color: #e2e8f0 !important;
+    font-feature-settings: "tnum" 1, "cv11" 1;
+}
+[data-testid="stCaptionContainer"], small {
+    color: #94a3b8 !important;
 }
 
-/* Apply tabular-nums to every metric value so currency columns align */
+/* Apply tabular-nums everywhere financials live */
 [data-testid="stMetricValue"],
 [data-testid="stMetricDelta"],
-[data-testid="stMetricLabel"] {
-    font-variant-numeric: tabular-nums;
-}
-
-/* Tabular nums inside dataframes too */
+[data-testid="stMetricLabel"],
 .stDataFrame, .stDataFrame * {
     font-variant-numeric: tabular-nums;
 }
 
-/* Balance headings so they don't break awkwardly */
-h1, h2, h3 {
+/* Headings — balance + dim title for hierarchy */
+h1, h2, h3, h4 {
     text-wrap: balance;
-    letter-spacing: -0.015em;
+    letter-spacing: -0.02em;
+    color: #f1f5f9 !important;
 }
-h1 { font-weight: 700; }
-h2 { font-weight: 650; }
-h3 { font-weight: 600; }
+h1 { font-weight: 700; font-size: 2rem; }
+h2 { font-weight: 650; font-size: 1.5rem; }
+h3 { font-weight: 600; font-size: 1.25rem; }
+h4 { font-weight: 600; font-size: 1.05rem; color: #cbd5e1 !important; }
 
-/* ── Metric cards — subtle elevation ──────────────────────────── */
+/* ── Metric cards — glass-morphism with gradient border ────── */
 [data-testid="stMetric"] {
-    background: #ffffff;
-    border: 1px solid #e2e8f0;
-    border-radius: 12px;
-    padding: 16px 20px;
-    transition: border-color 120ms ease, box-shadow 120ms ease;
-}
-[data-testid="stMetric"]:hover {
-    border-color: #cbd5e1;
-    box-shadow: 0 1px 3px rgba(15, 23, 42, 0.04), 0 1px 2px rgba(15, 23, 42, 0.03);
-}
-[data-testid="stMetricValue"] {
-    font-size: 1.875rem !important;
-    font-weight: 700 !important;
-    color: #0f172a !important;
-    letter-spacing: -0.025em;
-}
-[data-testid="stMetricLabel"] p {
-    font-size: 0.8125rem !important;
-    color: #64748b !important;
-    font-weight: 500 !important;
-    text-transform: none;
-}
-
-/* ── Buttons — refined ────────────────────────────────────────── */
-.stButton button {
-    border-radius: 8px;
-    font-weight: 500;
-    transition: transform 80ms ease, box-shadow 120ms ease;
-}
-.stButton button:hover {
-    box-shadow: 0 1px 3px rgba(15, 23, 42, 0.06);
-}
-.stButton button:active {
-    transform: translateY(1px);
-}
-
-/* Primary button uses our emerald accent */
-.stButton button[kind="primary"] {
-    background: #10b981;
-    border: 1px solid #059669;
-}
-.stButton button[kind="primary"]:hover {
-    background: #059669;
-    border-color: #047857;
-}
-
-/* ── Expanders — cleaner card look ────────────────────────────── */
-.streamlit-expanderHeader, [data-testid="stExpander"] details summary {
-    font-weight: 500;
-    border-radius: 10px;
-}
-[data-testid="stExpander"] {
-    border: 1px solid #e2e8f0;
-    border-radius: 12px;
-    background: #ffffff;
-}
-[data-testid="stExpander"] details summary:hover {
-    background: #f8fafc;
-}
-
-/* ── Dataframes — subtle borders ──────────────────────────────── */
-[data-testid="stDataFrame"] {
-    border-radius: 10px;
+    background: linear-gradient(135deg, rgba(28, 34, 69, 0.6) 0%, rgba(20, 25, 54, 0.4) 100%);
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+    border: 1px solid #252b4d;
+    border-radius: 14px;
+    padding: 18px 22px;
+    transition: border-color 160ms ease, transform 120ms ease, box-shadow 160ms ease;
+    position: relative;
     overflow: hidden;
 }
-
-/* ── Sidebar — tighter spacing ────────────────────────────────── */
-[data-testid="stSidebar"] {
-    background: #f8fafc;
-    border-right: 1px solid #e2e8f0;
+[data-testid="stMetric"]::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 1px;
+    background: linear-gradient(90deg, transparent, rgba(167, 139, 250, 0.4), transparent);
 }
-[data-testid="stSidebar"] [data-testid="stMarkdownContainer"] {
+[data-testid="stMetric"]:hover {
+    border-color: #3b4178;
+    transform: translateY(-1px);
+    box-shadow: 0 12px 24px -8px rgba(0, 0, 0, 0.3), 0 0 0 1px rgba(167, 139, 250, 0.1);
+}
+[data-testid="stMetricValue"] {
+    font-size: 2rem !important;
+    font-weight: 700 !important;
+    color: #f1f5f9 !important;
+    letter-spacing: -0.03em;
+    line-height: 1.1;
+}
+[data-testid="stMetricValue"] > div { color: #f1f5f9 !important; }
+[data-testid="stMetricLabel"] p {
+    font-size: 0.8125rem !important;
+    color: #94a3b8 !important;
+    font-weight: 500 !important;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+}
+[data-testid="stMetricDelta"] { font-weight: 500 !important; }
+[data-testid="stMetricDelta"] svg { display: inline-block; }
+
+/* ── Buttons ─────────────────────────────────────────────────── */
+.stButton button {
+    background: rgba(28, 34, 69, 0.6);
+    color: #e2e8f0 !important;
+    border: 1px solid #252b4d;
+    border-radius: 10px;
+    font-weight: 500;
+    padding: 0.5rem 1rem;
+    transition: all 140ms ease;
+}
+.stButton button:hover {
+    background: rgba(59, 65, 120, 0.8);
+    border-color: #3b4178;
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px -2px rgba(0, 0, 0, 0.3);
+}
+.stButton button:active { transform: translateY(0); }
+
+/* Primary button — emerald gradient with subtle glow */
+.stButton button[kind="primary"] {
+    background: linear-gradient(135deg, #34d399 0%, #10b981 100%);
+    color: #0a0e27 !important;
+    border: 1px solid #10b981;
+    font-weight: 600;
+    box-shadow: 0 0 18px -4px rgba(52, 211, 153, 0.5);
+}
+.stButton button[kind="primary"]:hover {
+    background: linear-gradient(135deg, #4ade80 0%, #22c55e 100%);
+    box-shadow: 0 0 24px -2px rgba(52, 211, 153, 0.7);
+}
+
+/* ── Expanders ───────────────────────────────────────────────── */
+[data-testid="stExpander"] {
+    background: rgba(28, 34, 69, 0.5);
+    backdrop-filter: blur(8px);
+    border: 1px solid #252b4d;
+    border-radius: 12px;
+    margin-bottom: 8px;
+}
+[data-testid="stExpander"] details summary {
+    color: #e2e8f0 !important;
+    font-weight: 500;
+    padding: 12px 16px !important;
+    border-radius: 12px;
+}
+[data-testid="stExpander"] details summary:hover {
+    background: rgba(59, 65, 120, 0.3);
+}
+[data-testid="stExpander"] details[open] summary {
+    border-bottom: 1px solid #252b4d;
+    border-radius: 12px 12px 0 0;
+}
+
+/* ── Tabs ────────────────────────────────────────────────────── */
+.stTabs [data-baseweb="tab-list"] {
+    gap: 6px;
+    background: transparent;
+    border-bottom: 1px solid #252b4d;
+}
+.stTabs [data-baseweb="tab"] {
+    background: transparent;
+    color: #94a3b8 !important;
+    border-radius: 8px 8px 0 0;
+    padding: 8px 16px;
     font-weight: 500;
 }
+.stTabs [data-baseweb="tab"]:hover { color: #e2e8f0 !important; background: rgba(59, 65, 120, 0.2); }
+.stTabs [aria-selected="true"] {
+    color: #34d399 !important;
+    background: rgba(52, 211, 153, 0.08);
+    border-bottom: 2px solid #34d399;
+}
 
-/* ── Status pill component (created via st.markdown) ──────────── */
+/* ── Dataframes ──────────────────────────────────────────────── */
+[data-testid="stDataFrame"] {
+    border: 1px solid #252b4d;
+    border-radius: 12px;
+    overflow: hidden;
+    background: rgba(20, 25, 54, 0.4);
+}
+[data-testid="stDataFrame"] [data-testid="stDataFrameResizable"] {
+    background: transparent;
+}
+
+/* Force chart embedded text to be readable on dark bg */
+.vega-embed { color: #e2e8f0 !important; }
+.vega-embed .role-axis text,
+.vega-embed .role-legend text,
+.vega-embed .role-title text { fill: #cbd5e1 !important; }
+
+/* ── Sidebar ─────────────────────────────────────────────────── */
+[data-testid="stSidebar"] {
+    background: linear-gradient(180deg, #0a0e27 0%, #0f1330 100%);
+    border-right: 1px solid #252b4d;
+}
+[data-testid="stSidebar"] [data-testid="stMarkdownContainer"] p,
+[data-testid="stSidebar"] a {
+    color: #cbd5e1 !important;
+    font-weight: 500;
+}
+[data-testid="stSidebar"] a:hover {
+    color: #34d399 !important;
+}
+[data-testid="stSidebarNav"] li > a[data-testid] {
+    border-radius: 8px;
+    padding: 6px 10px;
+}
+
+/* ── Inputs ──────────────────────────────────────────────────── */
+.stTextInput input, .stNumberInput input, .stDateInput input,
+.stSelectbox > div > div, .stTextArea textarea {
+    background: rgba(20, 25, 54, 0.7) !important;
+    color: #f1f5f9 !important;
+    border: 1px solid #252b4d !important;
+    border-radius: 8px !important;
+}
+.stTextInput input:focus, .stNumberInput input:focus,
+.stDateInput input:focus, .stTextArea textarea:focus {
+    border-color: #34d399 !important;
+    box-shadow: 0 0 0 2px rgba(52, 211, 153, 0.2) !important;
+}
+
+/* ── Alerts (st.success / warning / error / info) ───────────── */
+[data-testid="stAlert"] {
+    background: rgba(20, 25, 54, 0.6) !important;
+    border-radius: 12px;
+    border-width: 1px;
+    backdrop-filter: blur(6px);
+}
+[data-baseweb="notification"][kind="positive"], .stSuccess {
+    background: rgba(52, 211, 153, 0.12) !important;
+    border: 1px solid rgba(52, 211, 153, 0.4) !important;
+    color: #d1fae5 !important;
+}
+[data-baseweb="notification"][kind="warning"], .stWarning {
+    background: rgba(251, 191, 36, 0.10) !important;
+    border: 1px solid rgba(251, 191, 36, 0.4) !important;
+    color: #fef3c7 !important;
+}
+[data-baseweb="notification"][kind="negative"], .stError {
+    background: rgba(248, 113, 113, 0.10) !important;
+    border: 1px solid rgba(248, 113, 113, 0.4) !important;
+    color: #fee2e2 !important;
+}
+[data-baseweb="notification"][kind="info"], .stInfo {
+    background: rgba(96, 165, 250, 0.10) !important;
+    border: 1px solid rgba(96, 165, 250, 0.4) !important;
+    color: #dbeafe !important;
+}
+
+/* ── Status pill component ───────────────────────────────────── */
 .status-pill {
     display: inline-flex;
     align-items: center;
     gap: 6px;
-    padding: 3px 10px;
+    padding: 4px 12px;
     border-radius: 999px;
     font-size: 0.75rem;
     font-weight: 600;
-    letter-spacing: 0.02em;
+    letter-spacing: 0.04em;
     text-transform: uppercase;
+    border: 1px solid;
 }
-.status-pill.ok   { background: #d1fae5; color: #065f46; }
-.status-pill.warn { background: #fef3c7; color: #92400e; }
-.status-pill.over { background: #fee2e2; color: #991b1b; }
-.status-pill.info { background: #dbeafe; color: #1e40af; }
+.status-pill.ok   {
+    background: rgba(52, 211, 153, 0.12); color: #34d399;
+    border-color: rgba(52, 211, 153, 0.4);
+    box-shadow: 0 0 12px -2px rgba(52, 211, 153, 0.3);
+}
+.status-pill.warn {
+    background: rgba(251, 191, 36, 0.10); color: #fbbf24;
+    border-color: rgba(251, 191, 36, 0.4);
+}
+.status-pill.over {
+    background: rgba(248, 113, 113, 0.12); color: #f87171;
+    border-color: rgba(248, 113, 113, 0.4);
+    box-shadow: 0 0 12px -2px rgba(248, 113, 113, 0.3);
+}
+.status-pill.info {
+    background: rgba(96, 165, 250, 0.12); color: #60a5fa;
+    border-color: rgba(96, 165, 250, 0.4);
+}
 
-/* ── Section header component ─────────────────────────────────── */
+/* ── Section header ──────────────────────────────────────────── */
 .section-header {
     display: flex;
     align-items: baseline;
-    gap: 10px;
-    margin-top: 8px;
-    margin-bottom: 4px;
+    gap: 12px;
+    margin: 28px 0 12px 0;
+    padding-bottom: 10px;
+    border-bottom: 1px solid #252b4d;
 }
-.section-header .emoji { font-size: 1.5rem; line-height: 1; }
+.section-header .emoji { font-size: 1.6rem; line-height: 1; }
 .section-header .title {
-    font-size: 1.375rem;
+    font-size: 1.5rem;
     font-weight: 650;
-    color: #0f172a;
-    letter-spacing: -0.015em;
+    color: #f1f5f9;
+    letter-spacing: -0.02em;
 }
 .section-header .subtitle {
-    color: #64748b;
+    color: #94a3b8;
     font-size: 0.875rem;
     margin-left: auto;
     font-weight: 500;
 }
 
-/* ── Reduced motion respect (a11y) ────────────────────────────── */
+/* ── KPI card (custom, see kpi_card()) ─────────────────────── */
+.kpi-card {
+    background: linear-gradient(135deg, rgba(28, 34, 69, 0.7) 0%, rgba(20, 25, 54, 0.5) 100%);
+    backdrop-filter: blur(10px);
+    border: 1px solid #252b4d;
+    border-radius: 14px;
+    padding: 20px 22px;
+    position: relative;
+    overflow: hidden;
+    height: 100%;
+}
+.kpi-card::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 2px;
+    background: linear-gradient(90deg, var(--accent, #34d399), transparent);
+}
+.kpi-card .label {
+    color: #94a3b8;
+    font-size: 0.75rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    margin-bottom: 8px;
+}
+.kpi-card .value {
+    color: #f1f5f9;
+    font-size: 2rem;
+    font-weight: 700;
+    letter-spacing: -0.03em;
+    line-height: 1.1;
+    font-variant-numeric: tabular-nums;
+}
+.kpi-card .sub {
+    color: #94a3b8;
+    font-size: 0.8125rem;
+    margin-top: 6px;
+    font-weight: 500;
+}
+.kpi-card .sub.up { color: #34d399; }
+.kpi-card .sub.down { color: #f87171; }
+
+/* ── Reduced motion respect ──────────────────────────────────── */
 @media (prefers-reduced-motion: reduce) {
     *, *::before, *::after {
         animation-duration: 0.01ms !important;
@@ -206,23 +400,31 @@ h3 { font-weight: 600; }
     }
 }
 
-/* ── Hide Streamlit chrome we don't need ──────────────────────── */
+/* ── Hide Streamlit default chrome ───────────────────────────── */
 #MainMenu { visibility: hidden; }
 footer { visibility: hidden; }
 [data-testid="stToolbar"] { display: none; }
+[data-testid="stDecoration"] { display: none; }
+
+/* Horizontal rule */
+hr {
+    border: none;
+    border-top: 1px solid #252b4d;
+    margin: 24px 0;
+}
 </style>
 """
 
 
 # ─── ALTAIR THEME ───────────────────────────────────────────────────
 def _budget_altair_theme():
-    """Registered as 'budget' — applied to every chart on every page."""
+    """Dark Altair theme — applied to every chart automatically."""
     return {
         "config": {
             "view": {"continuousWidth": 400, "continuousHeight": 280, "strokeWidth": 0},
             "background": "transparent",
             "font": "Inter, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
-            "padding": {"top": 6, "right": 6, "bottom": 6, "left": 6},
+            "padding": {"top": 8, "right": 8, "bottom": 8, "left": 8},
             "title": {
                 "color": PALETTE["text_primary"],
                 "fontSize": 14,
@@ -238,13 +440,13 @@ def _budget_altair_theme():
                 "titleFontWeight": 500,
                 "titlePadding": 10,
                 "grid": True,
-                "gridColor": PALETTE["surface_2"],
-                "gridDash": [2, 2],
+                "gridColor": "rgba(148, 163, 184, 0.12)",
+                "gridDash": [2, 3],
                 "domain": False,
                 "ticks": False,
                 "labelPadding": 6,
             },
-            "axisX": {"grid": False},  # vertical gridlines = chart junk
+            "axisX": {"grid": False},  # no vertical gridlines
             "legend": {
                 "labelColor": PALETTE["text_secondary"],
                 "labelFontSize": 11,
@@ -257,10 +459,12 @@ def _budget_altair_theme():
                 "padding": 8,
             },
             "range": {"category": CATEGORICAL_RANGE},
-            "bar": {"cornerRadiusEnd": 4},
+            "bar": {"cornerRadiusEnd": 4, "stroke": None},
             "line": {"strokeWidth": 2.5},
             "area": {"opacity": 0.85},
-            "arc": {"innerRadius": 60, "cornerRadius": 3, "padAngle": 0.015},
+            "arc": {"innerRadius": 60, "cornerRadius": 3, "padAngle": 0.015, "stroke": "#0a0e27", "strokeWidth": 2},
+            "rule": {"stroke": "rgba(148, 163, 184, 0.4)"},
+            "point": {"size": 80, "filled": True},
             "header": {
                 "labelColor": PALETTE["text_secondary"],
                 "titleColor": PALETTE["text_primary"],
@@ -313,18 +517,37 @@ def render_status_pill(text: str, status: str = "info"):
     st.markdown(status_pill(text, status), unsafe_allow_html=True)
 
 
-def divider():
-    """Thinner divider than st.markdown('---')."""
+def kpi_card(label: str, value: str, sub: Optional[str] = None,
+             accent: str = "savings", trend: Optional[str] = None):
+    """Custom KPI card with gradient top border + glass-morphism background.
+
+    accent: key from PALETTE for the top-border color
+    trend: 'up' | 'down' | None  — colors the sub text
+    """
+    accent_color = PALETTE.get(accent, PALETTE["savings"])
+    trend_class = f" {trend}" if trend in {"up", "down"} else ""
+    sub_html = f'<div class="sub{trend_class}">{sub}</div>' if sub else ""
     st.markdown(
-        '<hr style="border: none; border-top: 1px solid #e2e8f0; margin: 24px 0 16px 0;" />',
+        f'<div class="kpi-card" style="--accent: {accent_color};">'
+        f'<div class="label">{label}</div>'
+        f'<div class="value">{value}</div>'
+        f'{sub_html}'
+        f'</div>',
+        unsafe_allow_html=True,
+    )
+
+
+def divider():
+    """Subtle dark divider."""
+    st.markdown(
+        '<hr style="border: none; border-top: 1px solid #252b4d; margin: 24px 0 16px 0;" />',
         unsafe_allow_html=True,
     )
 
 
 @contextmanager
 def section(emoji: str, title: str, subtitle: Optional[str] = None):
-    """Context manager: section header + divider on enter, vertical spacing on exit."""
-    divider()
+    """Context manager: section header + vertical spacing."""
     section_header(emoji, title, subtitle)
     yield
-    st.markdown('<div style="height: 4px;"></div>', unsafe_allow_html=True)
+    st.markdown('<div style="height: 8px;"></div>', unsafe_allow_html=True)

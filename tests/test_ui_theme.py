@@ -15,8 +15,8 @@ def test_palette_has_required_keys():
     required = {
         "income", "bills", "bnpl", "envelopes", "savings", "guilt_free",
         "ok", "warn", "over", "muted",
-        "surface", "surface_subtle", "border",
-        "text_primary", "text_secondary",
+        "bg", "surface", "surface_2", "border",
+        "text_primary", "text_secondary", "text_muted",
     }
     assert required.issubset(set(PALETTE.keys()))
 
@@ -45,8 +45,8 @@ def test_altair_theme_structure():
     # Has typography
     assert "font" in cfg
     assert "Inter" in cfg["font"]
-    # Axis grid is dashed (subtle)
-    assert cfg["axis"]["gridDash"] == [2, 2]
+    # Axis grid is dashed (subtle) — 2-pixel dashes with 3-pixel gaps for dark mode
+    assert cfg["axis"]["gridDash"] == [2, 3]
     # X axis has no grid (less visual clutter)
     assert cfg["axisX"]["grid"] is False
     # Categorical palette is wired in

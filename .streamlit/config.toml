@@ -1,15 +1,13 @@
-# Global Streamlit theme.
-# Per web-design-guidelines + scientific-visualization standards:
-#   - Inter font (system fallback) for readability
-#   - Restrained color palette anchored on a single primary
-#   - Distinct dark + light variants
+# Global Streamlit theme — dark mode by default.
+# Reference aesthetic: pulsechainstats.com (deep navy + glass-morphism cards)
+# Synthesized with web-design-guidelines + scientific-visualization standards.
 
 [theme]
-base = "light"
-primaryColor = "#10b981"           # emerald — anchor color (savings/positive)
-backgroundColor = "#ffffff"
-secondaryBackgroundColor = "#f8fafc"  # slate-50
-textColor = "#0f172a"              # slate-900
+base = "dark"
+primaryColor = "#34d399"                    # emerald-400 — anchor accent
+backgroundColor = "#0a0e27"                 # deep navy (page bg)
+secondaryBackgroundColor = "#141936"        # card / panel bg
+textColor = "#e2e8f0"                       # slate-200 — primary text
 font = "sans serif"
 
 [browser]

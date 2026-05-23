@@ -9,7 +9,7 @@ from services.db import get_session
 from services.dashboard_data import build_dashboard_view, set_manual_balance
 from services.paycheck_calendar import generate_paycheck_dates, next_paycheck_after
 from services.paycheck_view import build_paycheck_breakdowns, average_guilt_free
-from services.ui_theme import apply_app_chrome, PALETTE as _P, section
+from services.ui_theme import apply_app_chrome, PALETTE as _P, section, kpi_card
 
 apply_app_chrome("Dashboard — Budget", "📊")
 
@@ -45,30 +45,139 @@ with get_session() as session:
 
 avg_gf = average_guilt_free(breakdowns)
 
-# ─── HEADLINE METRICS ──────────────────────────────────────────────
-col1, col2, col3 = st.columns(3)
-col1.metric(
-    "Avg guilt-free / paycheck",
-    f"${avg_gf:,.2f}",
-    help=("Average leftover across the next 4 paychecks AFTER bills, BNPL, and "
-          "envelope budgets. This is your typical savings power per paycheck. "
-          "Individual paychecks vary because rent hits one and not the other."),
-)
-col2.metric(
-    "Next paycheck",
-    np_.actual_deposit_date.strftime("%a %b %d"),
-    f"${view.paycheck_amount:,.2f}",
-    help=f"Scheduled {np_.scheduled_date.strftime('%b %d')}",
-)
-if view.has_balance_source:
-    col3.metric(
-        "Safe to spend now",
-        f"${view.safe_to_spend:,.2f}",
-        help=f"Current balance (${view.balance:,.2f}) minus obligations before next paycheck.",
+# ─── HEADLINE KPI CARDS ────────────────────────────────────────────
+# Custom glass-morphism cards with gradient accent borders
+days_to_paycheck = (np_.actual_deposit_date - today).days
+avg_monthly_save = avg_gf * 2  # semi-monthly = 2 paychecks per month
+avg_annual_save = avg_monthly_save * 12
+
+col1, col2, col3, col4 = st.columns(4)
+with col1:
+    kpi_card(
+        "Avg guilt-free / paycheck",
+        f"${avg_gf:,.2f}",
+        sub=f"≈ ${avg_monthly_save:,.0f}/mo · ${avg_annual_save:,.0f}/yr",
+        accent="savings",
+        trend="up" if avg_gf > 0 else "down",
     )
-else:
-    col3.metric("Safe to spend now", "—",
-                help="Enter your current checking balance at the bottom.")
+with col2:
+    kpi_card(
+        "Next paycheck",
+        np_.actual_deposit_date.strftime("%b %d"),
+        sub=f"in {days_to_paycheck} day{'s' if days_to_paycheck != 1 else ''} · ${view.paycheck_amount:,.0f}",
+        accent="income",
+    )
+with col3:
+    if view.has_balance_source:
+        sts_trend = "up" if view.safe_to_spend >= 0 else "down"
+        kpi_card(
+            "Safe to spend now",
+            f"${view.safe_to_spend:,.2f}",
+            sub=f"Balance ${view.balance:,.0f} − upcoming",
+            accent="violet",
+            trend=sts_trend,
+        )
+    else:
+        kpi_card(
+            "Safe to spend now",
+            "—",
+            sub="Enter balance below to enable",
+            accent="muted",
+        )
+with col4:
+    # Number of bills hitting the next paycheck
+    next_bills_count = len(breakdowns[0].bills) + len(breakdowns[0].bnpl) if breakdowns else 0
+    next_bills_total = (breakdowns[0].bills_total + breakdowns[0].bnpl_total) if breakdowns else 0
+    kpi_card(
+        "Next paycheck obligations",
+        f"${next_bills_total:,.0f}",
+        sub=f"{next_bills_count} item{'s' if next_bills_count != 1 else ''} due before {np_.actual_deposit_date.strftime('%b %d')}",
+        accent="bills",
+    )
+
+st.markdown("---")
+
+# ─── BILLS CALENDAR — upcoming 60 days as a timeline ──────────────
+if breakdowns:
+    st.subheader("📅 Bills timeline (next 60 days)")
+    st.caption(
+        "Each dot is a bill or BNPL installment plotted on its due date. "
+        "Hover to see what & how much. Vertical lines = paycheck deposit dates."
+    )
+
+    timeline_rows = []
+    for bd in breakdowns:
+        for x in bd.bills:
+            timeline_rows.append({
+                "due_date": x.due_date, "label": x.label,
+                "amount": x.amount, "kind": "Bills",
+            })
+        for x in bd.bnpl:
+            timeline_rows.append({
+                "due_date": x.due_date, "label": x.label,
+                "amount": x.amount, "kind": "BNPL",
+            })
+        for x in bd.savings:
+            timeline_rows.append({
+                "due_date": x.due_date, "label": x.label,
+                "amount": x.amount, "kind": "Savings",
+            })
+
+    if timeline_rows:
+        tl_df = pd.DataFrame(timeline_rows)
+        tl_df["jitter"] = tl_df.groupby("due_date").cumcount() * 0.3 + 1
+        paycheck_dates = pd.DataFrame([
+            {"deposit_date": bd.deposit_date,
+             "label": bd.deposit_date.strftime("%b %d")}
+            for bd in breakdowns
+        ])
+
+        # Paycheck reference rules (vertical)
+        rules = (
+            alt.Chart(paycheck_dates)
+            .mark_rule(strokeDash=[3, 4], color=PALETTE["Income"], opacity=0.4, strokeWidth=1.5)
+            .encode(x="deposit_date:T")
+        )
+        # Paycheck labels at top
+        rule_labels = (
+            alt.Chart(paycheck_dates)
+            .mark_text(align="left", baseline="top", dy=-8, fontSize=10,
+                       color=PALETTE["Income"], fontWeight=500)
+            .encode(x="deposit_date:T", text="label:N")
+        )
+
+        # Bills as bubbles sized by amount
+        bubbles = (
+            alt.Chart(tl_df)
+            .mark_circle(opacity=0.85, stroke="#0a0e27", strokeWidth=1.5)
+            .encode(
+                x=alt.X("due_date:T", title=None,
+                        axis=alt.Axis(format="%b %d", labelAngle=0)),
+                y=alt.Y("jitter:Q", title=None, axis=None,
+                        scale=alt.Scale(domain=[0, max(tl_df["jitter"]) + 1])),
+                size=alt.Size("amount:Q", scale=alt.Scale(range=[150, 800]),
+                              legend=None),
+                color=alt.Color("kind:N",
+                                scale=alt.Scale(
+                                    domain=["Bills", "BNPL", "Savings"],
+                                    range=[_P["bills"], _P["bnpl"], _P["savings"]],
+                                ),
+                                legend=alt.Legend(title="Type")),
+                tooltip=[
+                    alt.Tooltip("due_date:T", format="%a %b %d", title="Due"),
+                    alt.Tooltip("label:N", title="Bill"),
+                    alt.Tooltip("amount:Q", format="$,.2f", title="Amount"),
+                    alt.Tooltip("kind:N", title="Type"),
+                ],
+            )
+        )
+
+        timeline = (rules + rule_labels + bubbles).properties(height=200).resolve_scale(
+            color="independent"
+        )
+        st.altair_chart(timeline, use_container_width=True)
+    else:
+        st.info("No bills, BNPL, or savings transfers in the next 60 days.")
 
 st.markdown("---")
 
