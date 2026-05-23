@@ -8,6 +8,28 @@ from services.db import get_session
 st.set_page_config(page_title="Bills — Budget", layout="wide")
 st.title("Bills")
 
+with st.expander("ℹ️  How bills assign to paychecks", expanded=False):
+    st.markdown(
+        """
+        - **`next_due_date`** = the date of the next upcoming instance of this bill.
+          The app projects it forward by **cadence** to find every future hit.
+        - **Cadences:**
+            - `monthly` → e.g., Rent on the 1st of every month
+            - `semi_monthly` → e.g., Gas paid roughly every 15 days
+            - `biweekly` → e.g., paid every 14 days
+            - `weekly` → every 7 days
+            - `annual` → once a year
+        - **Bills with cadence `monthly` only hit the paycheck whose period contains
+          the due date.** So Rent due on the 1st will hit your first paycheck of the
+          month, not the second.
+        - **Want a "save $X every paycheck" line?** Add it as a manual bill with
+          `cadence=semi_monthly` and `category=savings`. It will deduct from each paycheck.
+        - **Don't double-count:** if you have a `Gas` envelope AND list Gas as a bill,
+          both deduct. Pick one — usually envelope (since gas is variable) OR bill
+          (if you transfer a fixed amount each paycheck).
+        """
+    )
+
 with get_session() as session:
     bills = session.exec(select(RecurringBill)).all()
 

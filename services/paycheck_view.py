@@ -2,14 +2,57 @@
 
 Goal: answer "which bills hit THIS paycheck vs the NEXT one" so the user can
 see why one paycheck looks healthier than another.
+
+Bills are RECURRING — we project their next_due_date forward by cadence to
+generate all instances inside the lookahead window.
 """
 from dataclasses import dataclass, field
-from datetime import date
+from datetime import date, timedelta
 from typing import List
 
+from dateutil.relativedelta import relativedelta
 from sqlmodel import Session, select
 
 from models.schema import RecurringBill, BNPLInstallment, Envelope
+
+
+_CADENCE_STEP = {
+    "weekly":       lambda d: d + timedelta(days=7),
+    "biweekly":     lambda d: d + timedelta(days=14),
+    "semi_monthly": lambda d: d + timedelta(days=15),  # approximation
+    "monthly":      lambda d: d + relativedelta(months=1),
+    "annual":       lambda d: d + relativedelta(years=1),
+}
+
+
+def project_bill_instances(
+    next_due_date: date, cadence: str, window_start: date, window_end: date,
+) -> List[date]:
+    """Return all due-date instances of a recurring bill inside [window_start, window_end).
+
+    Advances `next_due_date` forward by cadence until it's >= window_start,
+    then emits every instance until window_end.
+    """
+    step = _CADENCE_STEP.get(cadence.lower())
+    if step is None:
+        # Unknown cadence — treat as one-time
+        return [next_due_date] if window_start <= next_due_date < window_end else []
+
+    cur = next_due_date
+    # Skip past instances cheaply
+    safety_max = 1200
+    safety = 0
+    while cur < window_start and safety < safety_max:
+        cur = step(cur)
+        safety += 1
+    # Collect instances within the window
+    out: List[date] = []
+    safety = 0
+    while cur < window_end and safety < safety_max:
+        out.append(cur)
+        cur = step(cur)
+        safety += 1
+    return out
 
 
 @dataclass
@@ -88,11 +131,13 @@ def build_paycheck_breakdowns(
         start = this_p.actual_deposit_date
         end = next_p.actual_deposit_date
 
-        period_bills = [
-            LineItem(label=b.display_name, amount=b.amount,
-                     due_date=b.next_due_date, kind="bill")
-            for b in bills if start <= b.next_due_date < end
-        ]
+        period_bills = []
+        for b in bills:
+            instances = project_bill_instances(b.next_due_date, b.cadence, start, end)
+            for d in instances:
+                period_bills.append(LineItem(
+                    label=b.display_name, amount=b.amount, due_date=d, kind="bill",
+                ))
         period_bnpl = [
             LineItem(label=f"BNPL #{i_.installment_number}", amount=i_.amount,
                      due_date=i_.due_date, kind="bnpl")
