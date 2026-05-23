@@ -3,7 +3,11 @@ from typing import Optional
 from sqlmodel import SQLModel, Field
 
 
+_TARGS = {"extend_existing": True}  # allow Streamlit hot-reload to re-import safely
+
+
 class Account(SQLModel, table=True):
+    __table_args__ = _TARGS
     id: Optional[int] = Field(default=None, primary_key=True)
     plaid_account_id: str = Field(unique=True, index=True)
     name: str
@@ -15,6 +19,7 @@ class Account(SQLModel, table=True):
 
 
 class Transaction(SQLModel, table=True):
+    __table_args__ = _TARGS
     id: Optional[int] = Field(default=None, primary_key=True)
     plaid_transaction_id: str = Field(unique=True, index=True)
     account_id: int = Field(foreign_key="account.id")
@@ -31,6 +36,7 @@ class Transaction(SQLModel, table=True):
 
 
 class RecurringBill(SQLModel, table=True):
+    __table_args__ = _TARGS
     id: Optional[int] = Field(default=None, primary_key=True)
     source: str
     plaid_stream_id: Optional[str] = Field(default=None, unique=True)
@@ -47,6 +53,7 @@ class RecurringBill(SQLModel, table=True):
 
 
 class BNPLPlan(SQLModel, table=True):
+    __table_args__ = _TARGS
     id: Optional[int] = Field(default=None, primary_key=True)
     source: str
     provider: str
@@ -60,6 +67,7 @@ class BNPLPlan(SQLModel, table=True):
 
 
 class BNPLInstallment(SQLModel, table=True):
+    __table_args__ = _TARGS
     id: Optional[int] = Field(default=None, primary_key=True)
     plan_id: int = Field(foreign_key="bnplplan.id")
     installment_number: int
@@ -70,6 +78,7 @@ class BNPLInstallment(SQLModel, table=True):
 
 
 class Envelope(SQLModel, table=True):
+    __table_args__ = _TARGS
     id: Optional[int] = Field(default=None, primary_key=True)
     name: str = Field(unique=True)
     rolling_window_days: int = 90
@@ -80,6 +89,7 @@ class Envelope(SQLModel, table=True):
 
 
 class Paycheck(SQLModel, table=True):
+    __table_args__ = _TARGS
     id: Optional[int] = Field(default=None, primary_key=True)
     scheduled_date: date = Field(index=True)
     actual_deposit_date: date = Field(index=True)
@@ -88,5 +98,6 @@ class Paycheck(SQLModel, table=True):
 
 
 class SyncState(SQLModel, table=True):
+    __table_args__ = _TARGS
     key: str = Field(primary_key=True)
     value: str
