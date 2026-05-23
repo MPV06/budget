@@ -56,36 +56,106 @@ with get_session() as session:
         st.info("Nothing pending.")
 
     active = [b for b in confirmed if b.is_active]
-    st.subheader(f"Active bills ({len(active)})")
-    for b in active:
-        with st.expander(f"{b.display_name} — ${b.amount:,.2f} {b.cadence} (next: {b.next_due_date})"):
-            with st.form(f"edit_{b.id}"):
-                name = st.text_input("Name", value=b.display_name)
-                amount = st.number_input("Amount", min_value=0.0, step=1.0, value=float(b.amount))
-                cadences = ["weekly", "biweekly", "semi_monthly", "monthly", "annual"]
-                cadence = st.selectbox("Cadence", cadences,
-                                       index=cadences.index(b.cadence) if b.cadence in cadences else 3)
-                next_due = st.date_input("Next due date", value=b.next_due_date)
-                buckets = ["needs", "wants", "savings"]
-                category = st.selectbox("50/30/20 bucket", buckets,
-                                        index=buckets.index(b.category) if b.category in buckets else 0)
-                c1, c2 = st.columns(2)
-                if c1.form_submit_button("Save changes"):
-                    b.display_name = name
-                    b.merchant_name = name
-                    b.amount = amount
-                    b.cadence = cadence
-                    b.next_due_date = next_due
-                    b.category = category
-                    session.add(b); session.commit()
-                    st.success("Saved.")
-                    st.rerun()
-                if c2.form_submit_button("Delete bill", type="secondary"):
-                    session.delete(b); session.commit()
-                    st.success("Deleted.")
-                    st.rerun()
-    if not active:
+    inactive = [b for b in confirmed if not b.is_active]
+
+    # ─── ACTIVE BILLS (toggle ON) ─────────────────────────────────
+    st.subheader(f"🟢 Active bills ({len(active)})")
+    st.caption(
+        "Toggle a bill OFF to see what your budget looks like without it — "
+        "great for 'what if I cut this?' experiments. You can always toggle it back ON."
+    )
+    if active:
+        # Sortable toggle list above the edit expanders
+        for b in active:
+            row = st.columns([0.7, 3, 2, 2, 2])
+            new_state = row[0].toggle("", value=True, key=f"tog_{b.id}",
+                                       label_visibility="collapsed",
+                                       help="Toggle OFF to exclude from budget calcs")
+            row[1].markdown(f"**{b.display_name}**")
+            row[2].markdown(f"${b.amount:,.2f}")
+            row[3].markdown(f"`{b.cadence}`")
+            row[4].markdown(f"next: {b.next_due_date}")
+            if not new_state:
+                b.is_active = False
+                session.add(b); session.commit()
+                st.rerun()
+
+        st.markdown("**Edit / delete individual bills:**")
+        for b in active:
+            with st.expander(
+                f"{b.display_name} — ${b.amount:,.2f} {b.cadence} (next: {b.next_due_date})"
+            ):
+                with st.form(f"edit_{b.id}"):
+                    name = st.text_input("Name", value=b.display_name)
+                    amount = st.number_input("Amount", min_value=0.0, step=1.0, value=float(b.amount))
+                    cadences = ["weekly", "biweekly", "semi_monthly", "monthly", "annual"]
+                    cadence = st.selectbox("Cadence", cadences,
+                                           index=cadences.index(b.cadence) if b.cadence in cadences else 3)
+                    next_due = st.date_input("Next due date", value=b.next_due_date)
+                    buckets = ["needs", "wants", "savings"]
+                    category = st.selectbox("50/30/20 bucket", buckets,
+                                            index=buckets.index(b.category) if b.category in buckets else 0)
+                    c1, c2 = st.columns(2)
+                    if c1.form_submit_button("Save changes"):
+                        b.display_name = name
+                        b.merchant_name = name
+                        b.amount = amount
+                        b.cadence = cadence
+                        b.next_due_date = next_due
+                        b.category = category
+                        session.add(b); session.commit()
+                        st.success("Saved.")
+                        st.rerun()
+                    if c2.form_submit_button("Delete bill", type="secondary"):
+                        session.delete(b); session.commit()
+                        st.success("Deleted.")
+                        st.rerun()
+    else:
         st.info("No active bills yet.")
+
+    # ─── HIDDEN / INACTIVE BILLS (toggle OFF) ─────────────────────
+    if inactive:
+        # Compute hypothetical savings if all inactive were re-enabled
+        def _to_monthly(amount: float, cadence: str) -> float:
+            c = (cadence or "monthly").lower()
+            if c == "monthly":
+                return amount
+            if c == "weekly":
+                return amount * 52 / 12
+            if c == "biweekly":
+                return amount * 26 / 12
+            if c == "semi_monthly":
+                return amount * 2
+            if c == "annual":
+                return amount / 12
+            return amount
+
+        total_hidden_monthly = sum(_to_monthly(b.amount, b.cadence) for b in inactive)
+
+        st.markdown("---")
+        st.subheader(f"🔴 Hidden bills ({len(inactive)})")
+        st.success(
+            f"💸 By hiding these, you're saving **${total_hidden_monthly:,.2f}/month** "
+            f"(**${total_hidden_monthly * 12:,.2f}/year**) in your budget projections."
+        )
+        st.caption("Toggle ON to add it back to your budget. Or delete permanently.")
+
+        for b in inactive:
+            monthly_eq = _to_monthly(b.amount, b.cadence)
+            row = st.columns([0.7, 3, 2, 2, 1])
+            new_state = row[0].toggle("", value=False, key=f"tog_off_{b.id}",
+                                       label_visibility="collapsed",
+                                       help="Toggle ON to restore to budget")
+            row[1].markdown(f"~~{b.display_name}~~")
+            row[2].markdown(f"~~${b.amount:,.2f}~~")
+            row[3].markdown(f"_${monthly_eq:,.2f}/mo_")
+            if row[4].button("🗑", key=f"del_off_{b.id}", help="Delete permanently"):
+                session.delete(b); session.commit()
+                st.rerun()
+            if new_state:
+                b.is_active = True
+                session.add(b); session.commit()
+                st.rerun()
 
     st.subheader("Add manual bill")
     with st.form("add_bill"):
