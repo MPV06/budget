@@ -60,7 +60,7 @@ class LineItem:
     label: str
     amount: float
     due_date: date
-    kind: str  # 'bill' | 'bnpl'
+    kind: str  # 'bill' | 'bnpl' | 'envelope'
 
 
 @dataclass
@@ -72,7 +72,7 @@ class PaycheckBreakdown:
     paycheck_amount: float
     bills: List[LineItem] = field(default_factory=list)
     bnpl: List[LineItem] = field(default_factory=list)
-    envelopes_allocated: float = 0.0
+    envelopes: List[LineItem] = field(default_factory=list)
 
     @property
     def bills_total(self) -> float:
@@ -83,12 +83,24 @@ class PaycheckBreakdown:
         return round(sum(b.amount for b in self.bnpl), 2)
 
     @property
+    def envelopes_allocated(self) -> float:
+        return round(sum(e.amount for e in self.envelopes), 2)
+
+    @property
     def obligations_total(self) -> float:
         return round(self.bills_total + self.bnpl_total + self.envelopes_allocated, 2)
 
     @property
     def guilt_free(self) -> float:
         return round(self.paycheck_amount - self.obligations_total, 2)
+
+    @property
+    def days_in_period(self) -> int:
+        return max((self.period_end - self.period_start).days, 1)
+
+    @property
+    def daily_guilt_free(self) -> float:
+        return round(self.guilt_free / self.days_in_period, 2)
 
 
 def build_paycheck_breakdowns(
@@ -115,10 +127,6 @@ def build_paycheck_breakdowns(
         select(BNPLInstallment).where(BNPLInstallment.status == "scheduled")
     ).all()
     envelopes = session.exec(select(Envelope)).all()
-    envelopes_per_paycheck = sum(
-        (e.user_override if e.user_override is not None else e.current_budget_per_paycheck)
-        for e in envelopes
-    )
 
     upcoming = [p for p in pay_schedule if p.actual_deposit_date >= today][:n + 1]
     if len(upcoming) < 2:
@@ -143,6 +151,19 @@ def build_paycheck_breakdowns(
                      due_date=i_.due_date, kind="bnpl")
             for i_ in installments if start <= i_.due_date < end
         ]
+        period_envelopes = [
+            LineItem(
+                label=e.name,
+                amount=round(
+                    e.user_override if e.user_override is not None
+                    else e.current_budget_per_paycheck,
+                    2,
+                ),
+                due_date=start,
+                kind="envelope",
+            )
+            for e in envelopes
+        ]
         out.append(PaycheckBreakdown(
             deposit_date=this_p.actual_deposit_date,
             scheduled_date=this_p.scheduled_date,
@@ -151,7 +172,7 @@ def build_paycheck_breakdowns(
             paycheck_amount=round(paycheck_amount, 2),
             bills=sorted(period_bills, key=lambda x: x.due_date),
             bnpl=sorted(period_bnpl, key=lambda x: x.due_date),
-            envelopes_allocated=round(envelopes_per_paycheck, 2),
+            envelopes=period_envelopes,
         ))
     return out
 

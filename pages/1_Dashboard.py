@@ -112,23 +112,23 @@ if breakdowns:
         "If the colored bars exceed that line, that paycheck is short."
     )
 
-# ─── PER-PAYCHECK DETAIL ──────────────────────────────────────────
+# ─── PER-PAYCHECK DETAIL — Excel-style transparent math ───────────
 for i, b in enumerate(breakdowns):
     is_short = b.guilt_free < 0
     badge = "🔴" if is_short else "🟢"
     title = (
         f"{badge}  Paycheck {i+1}: **{b.deposit_date.strftime('%a %b %d')}** "
-        f"(scheduled {b.scheduled_date.strftime('%b %d')})  ·  "
-        f"Guilt-free: **${b.guilt_free:,.2f}**"
+        f"(period {b.period_start.strftime('%b %d')} → {b.period_end.strftime('%b %d')}, "
+        f"{b.days_in_period} days)  ·  Guilt-free: **${b.guilt_free:,.2f}**"
     )
     with st.expander(title, expanded=(i == 0)):
-        m1, m2, m3, m4, m5 = st.columns(5)
-        m1.metric("Paycheck", f"${b.paycheck_amount:,.2f}")
-        m2.metric("Bills", f"−${b.bills_total:,.2f}")
-        m3.metric("BNPL", f"−${b.bnpl_total:,.2f}")
-        m4.metric("Envelopes", f"−${b.envelopes_allocated:,.2f}")
-        m5.metric("Guilt-free", f"${b.guilt_free:,.2f}",
+        # ── Top-line numbers ──
+        m1, m2, m3 = st.columns(3)
+        m1.metric("Budget (guilt-free)", f"${b.guilt_free:,.2f}",
                   delta_color="normal" if not is_short else "inverse")
+        m2.metric("Days left in period", b.days_in_period)
+        m3.metric("Daily spending allowance", f"${b.daily_guilt_free:,.2f}",
+                  help="Guilt-free ÷ days. If you spend this much per day, you'll exactly hit 0 at next paycheck.")
 
         if is_short:
             st.error(
@@ -136,25 +136,69 @@ for i, b in enumerate(breakdowns):
                 "Cover it from prior-paycheck leftover, defer a BNPL, or trim an envelope."
             )
 
-        l, r = st.columns(2)
-        with l:
-            st.markdown("**Bills hitting this paycheck:**")
+        # ── Transparent math table — every line, then subtotals, then leftover ──
+        st.markdown("##### The math")
+        rows = [{"category": "Income", "item": "Paycheck",
+                 "due": b.deposit_date, "amount": b.paycheck_amount}]
+        for bill in b.bills:
+            rows.append({"category": "Bills", "item": bill.label,
+                         "due": bill.due_date, "amount": -bill.amount})
+        for bnpl in b.bnpl:
+            rows.append({"category": "BNPL", "item": bnpl.label,
+                         "due": bnpl.due_date, "amount": -bnpl.amount})
+        for env in b.envelopes:
+            rows.append({"category": "Envelopes", "item": env.label,
+                         "due": None, "amount": -env.amount})
+
+        df = pd.DataFrame(rows)
+        if not df.empty:
+            df["amount_fmt"] = df["amount"].apply(lambda x: f"${x:,.2f}" if x >= 0 else f"−${abs(x):,.2f}")
+            display = df[["category", "item", "due", "amount_fmt"]].rename(
+                columns={"amount_fmt": "amount"}
+            )
+            st.dataframe(display, use_container_width=True, hide_index=True)
+
+        # ── Subtotal box — matches user's Excel format ──
+        st.markdown("##### Subtotals")
+        sub_rows = [
+            {"line": "Paycheck", "amount": f"+${b.paycheck_amount:,.2f}"},
+            {"line": f"Bills ({len(b.bills)} items)", "amount": f"−${b.bills_total:,.2f}"},
+            {"line": f"BNPL ({len(b.bnpl)} items)", "amount": f"−${b.bnpl_total:,.2f}"},
+            {"line": f"Envelopes ({len(b.envelopes)} items)", "amount": f"−${b.envelopes_allocated:,.2f}"},
+            {"line": "── TOTAL OBLIGATIONS ──", "amount": f"−${b.obligations_total:,.2f}"},
+            {"line": "💰 GUILT-FREE LEFT", "amount": f"${b.guilt_free:,.2f}"},
+        ]
+        st.dataframe(pd.DataFrame(sub_rows), use_container_width=True, hide_index=True)
+
+        # ── Per-category detail tables ──
+        col_left, col_mid, col_right = st.columns(3)
+        with col_left:
+            st.markdown(f"**Bills · ${b.bills_total:,.2f}**")
             if b.bills:
                 st.dataframe(pd.DataFrame([
-                    {"due": x.due_date, "name": x.label, "amount": x.amount}
+                    {"due": x.due_date, "name": x.label, "amount": f"${x.amount:,.2f}"}
                     for x in b.bills
                 ]), use_container_width=True, hide_index=True)
             else:
-                st.caption("None.")
-        with r:
-            st.markdown("**BNPL installments hitting this paycheck:**")
+                st.caption("No bills this paycheck.")
+        with col_mid:
+            st.markdown(f"**BNPL · ${b.bnpl_total:,.2f}**")
             if b.bnpl:
                 st.dataframe(pd.DataFrame([
-                    {"due": x.due_date, "name": x.label, "amount": x.amount}
+                    {"due": x.due_date, "name": x.label, "amount": f"${x.amount:,.2f}"}
                     for x in b.bnpl
                 ]), use_container_width=True, hide_index=True)
             else:
-                st.caption("None.")
+                st.caption("No BNPL this paycheck.")
+        with col_right:
+            st.markdown(f"**Envelopes · ${b.envelopes_allocated:,.2f}**")
+            if b.envelopes:
+                st.dataframe(pd.DataFrame([
+                    {"envelope": x.label, "per_paycheck": f"${x.amount:,.2f}"}
+                    for x in b.envelopes
+                ]), use_container_width=True, hide_index=True)
+            else:
+                st.caption("No envelopes set up.")
 
 st.markdown("---")
 
