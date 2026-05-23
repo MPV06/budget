@@ -87,14 +87,18 @@ def build_dashboard_view(
         balance = 0.0
         has_balance_source = False
 
-    # Upcoming bills before the next paycheck (for safe-to-spend)
+    # Bills that still need to be paid from current balance:
+    #   - OVERDUE: next_due_date is in the past (unpaid, still owed)
+    #   - UPCOMING: next_due_date is between today and the next paycheck
+    # Anything due ON OR AFTER the next paycheck is excluded — the next
+    # paycheck will cover it.
     bills = session.exec(
         select(RecurringBill).where(RecurringBill.is_active == True)  # noqa: E712
     ).all()
     upcoming_bills = [
         ObligationItem(due_date=b.next_due_date, amount=b.amount, label=b.display_name)
         for b in bills
-        if today <= b.next_due_date < next_paycheck
+        if b.next_due_date < next_paycheck  # includes past-due (overdue)
     ]
 
     installments = session.exec(
@@ -103,7 +107,7 @@ def build_dashboard_view(
     upcoming_bnpl = [
         ObligationItem(due_date=i.due_date, amount=i.amount, label=f"BNPL #{i.installment_number}")
         for i in installments
-        if today <= i.due_date < next_paycheck
+        if i.due_date < next_paycheck  # includes past-due
     ]
 
     obligations = upcoming_bills + upcoming_bnpl
