@@ -4,9 +4,11 @@ from sqlmodel import select, desc
 
 from models.schema import Transaction, Envelope
 from services.db import get_session
+from services.ui_theme import apply_app_chrome
 
-st.set_page_config(page_title="Transactions — Budget", layout="wide")
-st.title("Transactions")
+apply_app_chrome("Transactions — Budget", "📜")
+st.markdown("# 📜 Transactions")
+st.caption("Last 500 Plaid-synced transactions · Searchable by merchant")
 
 with get_session() as session:
     rows = session.exec(

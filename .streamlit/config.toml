@@ -1,0 +1,21 @@
+# Global Streamlit theme.
+# Per web-design-guidelines + scientific-visualization standards:
+#   - Inter font (system fallback) for readability
+#   - Restrained color palette anchored on a single primary
+#   - Distinct dark + light variants
+
+[theme]
+base = "light"
+primaryColor = "#10b981"           # emerald — anchor color (savings/positive)
+backgroundColor = "#ffffff"
+secondaryBackgroundColor = "#f8fafc"  # slate-50
+textColor = "#0f172a"              # slate-900
+font = "sans serif"
+
+[browser]
+gatherUsageStats = false
+
+[server]
+# Default to localhost-only for privacy per privacy-data-security standards.
+address = "127.0.0.1"
+headless = true

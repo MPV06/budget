@@ -9,21 +9,21 @@ from services.db import get_session
 from services.dashboard_data import build_dashboard_view, set_manual_balance
 from services.paycheck_calendar import generate_paycheck_dates, next_paycheck_after
 from services.paycheck_view import build_paycheck_breakdowns, average_guilt_free
+from services.ui_theme import apply_app_chrome, PALETTE as _P, section
 
-st.set_page_config(page_title="Dashboard — Budget", layout="wide")
+apply_app_chrome("Dashboard — Budget", "📊")
 
-# ─── PALETTE ────────────────────────────────────────────────────────
-# Consistent across all charts
+# Back-compat alias for the rest of this file (used in chart code below)
 PALETTE = {
-    "Income":     "#3b82f6",   # blue
-    "Bills":      "#ef4444",   # red
-    "BNPL":       "#f97316",   # orange
-    "Envelopes":  "#eab308",   # yellow
-    "Guilt-free": "#22c55e",   # green
-    "Savings":    "#10b981",   # emerald
+    "Income":     _P["income"],
+    "Bills":      _P["bills"],
+    "BNPL":       _P["bnpl"],
+    "Envelopes":  _P["envelopes"],
+    "Guilt-free": _P["guilt_free"],
+    "Savings":    _P["savings"],
 }
 
-st.title("💰 Budget Dashboard")
+st.markdown("# 📊 Dashboard")
 st.caption(f"As of **{date.today().strftime('%A, %B %d, %Y')}**")
 
 s = get_settings()

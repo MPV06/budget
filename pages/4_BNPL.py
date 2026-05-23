@@ -5,9 +5,11 @@ from sqlmodel import select
 from models.schema import BNPLPlan, BNPLInstallment
 from services.bnpl_detector import project_schedule
 from services.db import get_session
+from services.ui_theme import apply_app_chrome
 
-st.set_page_config(page_title="BNPL — Budget", layout="wide")
-st.title("Buy Now, Pay Later")
+apply_app_chrome("BNPL — Budget", "💳")
+st.markdown("# 💳 Buy Now, Pay Later")
+st.caption("Affirm · Chase Pay-in-4 · Klarna · Afterpay installment tracking")
 
 with get_session() as session:
     plans = session.exec(select(BNPLPlan).where(BNPLPlan.is_active == True)).all()  # noqa: E712

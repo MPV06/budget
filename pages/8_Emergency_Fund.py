@@ -7,9 +7,10 @@ from sqlmodel import select
 from models.schema import RecurringBill, Envelope, SyncState
 from services.db import get_session
 from services.emergency_fund import size_emergency_fund, months_of_runway
+from services.ui_theme import apply_app_chrome
 
-st.set_page_config(page_title="Emergency Fund — Budget", layout="wide")
-st.title("Emergency Fund")
+apply_app_chrome("Emergency Fund — Budget", "🛡️")
+st.markdown("# 🛡️ Emergency Fund")
 st.caption(
     "3–6 months of *essential* expenses (housing, food, utilities, insurance, "
     "transportation, minimum debt payments) — NOT total spending. Exclude dining out, "

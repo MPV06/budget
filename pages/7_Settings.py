@@ -7,9 +7,11 @@ from services.secret_store import (
     get_plaid_access_token, set_plaid_access_token,
     clear_plaid_access_token, is_using_keyring,
 )
+from services.ui_theme import apply_app_chrome
 
-st.set_page_config(page_title="Settings — Budget", layout="wide")
-st.title("Settings")
+apply_app_chrome("Settings — Budget", "⚙️")
+st.markdown("# ⚙️ Settings")
+st.caption("Config · Plaid onboarding · Security · Data controls")
 
 try:
     s = get_settings()

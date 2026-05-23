@@ -11,16 +11,17 @@ from services.db import get_session
 from services.savings_summary import (
     build_summary, add_per_paycheck_save_line, savings_rate_pct,
 )
+from services.ui_theme import apply_app_chrome, PALETTE as _P
 
-st.set_page_config(page_title="Save — Budget", layout="wide")
+apply_app_chrome("Save — Budget", "💎")
 
-# Palette — consistent with Dashboard
-SAVINGS_GREEN = "#10b981"
-EMERGENCY_BLUE = "#3b82f6"
-GOAL_PURPLE = "#a855f7"
-GENERIC_GRAY = "#94a3b8"
+# Palette — pulled from shared theme
+SAVINGS_GREEN = _P["savings"]
+EMERGENCY_BLUE = _P["income"]
+GOAL_PURPLE = "#a855f7"   # only used on this page
+GENERIC_GRAY = _P["text_muted"]
 
-st.title("💎 Save")
+st.markdown("# 💎 Save")
 st.caption(f"All savings activity in one view · As of **{date.today().strftime('%B %d, %Y')}**")
 
 s = get_settings()

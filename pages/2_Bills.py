@@ -4,9 +4,11 @@ from sqlmodel import select
 
 from models.schema import RecurringBill
 from services.db import get_session
+from services.ui_theme import apply_app_chrome
 
-st.set_page_config(page_title="Bills — Budget", layout="wide")
-st.title("Bills")
+apply_app_chrome("Bills — Budget", "🧾")
+st.markdown("# 🧾 Bills")
+st.caption("Recurring obligations · Toggle off to see what cutting them saves you")
 
 with st.expander("ℹ️  How bills assign to paychecks", expanded=False):
     st.markdown(

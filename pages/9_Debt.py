@@ -10,9 +10,10 @@ from services.debt_payoff import (
     Debt, simulate_payoff,
     front_end_dti, back_end_dti, dti_status,
 )
+from services.ui_theme import apply_app_chrome
 
-st.set_page_config(page_title="Debt — Budget", layout="wide")
-st.title("Debt")
+apply_app_chrome("Debt — Budget", "⚖️")
+st.markdown("# ⚖️ Debt")
 st.caption(
     "Track debts, compare avalanche (mathematically optimal) vs snowball "
     "(psychologically optimal) payoff strategies, and check your DTI ratios."

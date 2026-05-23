@@ -18,9 +18,10 @@ from sqlmodel import select
 from models.schema import SavingsGoal
 from services.db import get_session
 from services.savings_goal import build_plan, required_monthly_savings, months_until
+from services.ui_theme import apply_app_chrome
 
-st.set_page_config(page_title="Goals — Budget", layout="wide")
-st.title("Savings Goals")
+apply_app_chrome("Goals — Budget", "🎯")
+st.markdown("# 🎯 Savings Goals")
 st.caption(
     "Per the savings-goals standard: fund in **priority order** — emergency fund first, "
     "then employer 401(k) match, then high-interest debt, then retirement, then everything else."

@@ -10,9 +10,11 @@ from services.budget_engine import (
 from services.db import get_session
 from services.envelope_data import current_period_spend, monthly_totals_for_envelope
 from services.paycheck_calendar import generate_paycheck_dates, next_paycheck_after
+from services.ui_theme import apply_app_chrome
 
-st.set_page_config(page_title="Envelopes — Budget", layout="wide")
-st.title("Envelopes")
+apply_app_chrome("Envelopes — Budget", "✉️")
+st.markdown("# ✉️ Envelopes")
+st.caption("Variable-category budgets · Groceries · Restaurants · Gas")
 
 today = date.today()
 cal = generate_paycheck_dates(start=date(today.year, today.month, 1), months=2)
