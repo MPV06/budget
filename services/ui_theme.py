@@ -504,6 +504,108 @@ h4 { font-weight: 600; font-size: 1rem; color: #cbd5e1 !important; letter-spacin
 .kpi-card .sub.up { color: #34d399; }
 .kpi-card .sub.down { color: #f87171; }
 
+/* ── Token card (crypto holdings) ────────────────────────────── */
+.token-card {
+    background: linear-gradient(135deg, rgba(28, 34, 69, 0.7) 0%, rgba(20, 25, 54, 0.5) 100%);
+    backdrop-filter: blur(10px);
+    border: 1px solid #252b4d;
+    border-radius: 16px;
+    padding: 18px 20px;
+    height: 100%;
+    transition: border-color 160ms ease, transform 120ms ease, box-shadow 160ms ease;
+    position: relative;
+    overflow: hidden;
+}
+.token-card:hover {
+    border-color: #3b4178;
+    transform: translateY(-2px);
+    box-shadow: 0 12px 30px -10px rgba(0, 0, 0, 0.4), 0 0 0 1px rgba(52, 211, 153, 0.15);
+}
+.token-card .row1 {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 14px;
+}
+.token-card .logo {
+    width: 44px;
+    height: 44px;
+    border-radius: 50%;
+    background: rgba(255, 255, 255, 0.04);
+    padding: 4px;
+    flex-shrink: 0;
+    object-fit: contain;
+}
+.token-card .logo-fallback {
+    width: 44px;
+    height: 44px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, #3b4178, #252b4d);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    color: #94a3b8;
+    font-weight: 700;
+    font-size: 0.95rem;
+    flex-shrink: 0;
+}
+.token-card .meta { flex: 1; min-width: 0; }
+.token-card .symbol {
+    font-family: var(--font-ui);
+    font-size: 1.05rem;
+    font-weight: 700;
+    color: #f1f5f9;
+    letter-spacing: -0.01em;
+}
+.token-card .name {
+    font-size: 0.78rem;
+    color: #94a3b8;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    margin-top: 2px;
+}
+.token-card .pct {
+    font-family: var(--font-mono);
+    font-size: 0.78rem;
+    color: #34d399;
+    background: rgba(52, 211, 153, 0.10);
+    padding: 3px 8px;
+    border-radius: 999px;
+    border: 1px solid rgba(52, 211, 153, 0.25);
+    white-space: nowrap;
+}
+.token-card .value {
+    font-family: var(--font-mono);
+    font-size: 1.65rem;
+    font-weight: 700;
+    color: #f1f5f9;
+    letter-spacing: -0.025em;
+    line-height: 1.1;
+    margin-bottom: 6px;
+    font-variant-numeric: tabular-nums;
+}
+.token-card .balance {
+    font-family: var(--font-mono);
+    font-size: 0.78rem;
+    color: #94a3b8;
+    font-variant-numeric: tabular-nums;
+    word-break: break-word;
+}
+.token-card .chain-badge {
+    display: inline-block;
+    font-family: var(--font-ui);
+    font-size: 0.65rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    padding: 2px 7px;
+    border-radius: 4px;
+    margin-top: 8px;
+}
+.token-card .chain-badge.pulsechain { background: rgba(251, 191, 36, 0.10); color: #fbbf24; border: 1px solid rgba(251, 191, 36, 0.3); }
+.token-card .chain-badge.ethereum   { background: rgba(96, 165, 250, 0.10); color: #60a5fa; border: 1px solid rgba(96, 165, 250, 0.3); }
+
 /* ── Reduced motion respect ──────────────────────────────────── */
 @media (prefers-reduced-motion: reduce) {
     *, *::before, *::after {
@@ -734,6 +836,61 @@ def status_pill(text: str, status: str = "info") -> str:
 def render_status_pill(text: str, status: str = "info"):
     """Convenience: render the pill directly."""
     st.markdown(status_pill(text, status), unsafe_allow_html=True)
+
+
+def token_card(
+    symbol: str,
+    name: str,
+    value_usd: Optional[float],
+    balance: float,
+    price_usd: Optional[float],
+    pct_of_portfolio: Optional[float] = None,
+    chain: str = "",
+    logo_data_url: Optional[str] = None,
+):
+    """Render a single crypto token as a glass-morphism card."""
+    if logo_data_url:
+        logo_html = f'<img class="logo" src="{logo_data_url}" alt="{symbol}" />'
+    else:
+        # Fallback: monogram circle with first 1-2 chars
+        initial = (symbol or "?")[:2].upper()
+        logo_html = f'<div class="logo-fallback">{initial}</div>'
+
+    pct_html = (
+        f'<div class="pct">{pct_of_portfolio:.1f}%</div>'
+        if pct_of_portfolio is not None else ""
+    )
+
+    value_str = f"${value_usd:,.2f}" if value_usd is not None else "—"
+    price_str = f"${price_usd:,.6f}" if price_usd else "—"
+    balance_str = f"{balance:,.4f}".rstrip("0").rstrip(".") if balance else "0"
+
+    chain_lower = (chain or "").lower()
+    chain_html = (
+        f'<span class="chain-badge {chain_lower}">{chain}</span>'
+        if chain else ""
+    )
+
+    # Escape name to prevent HTML injection (a token name could be malicious)
+    safe_name = (name or "")[:40].replace("<", "&lt;").replace(">", "&gt;")
+    safe_symbol = (symbol or "?")[:12].replace("<", "&lt;").replace(">", "&gt;")
+
+    st.markdown(
+        f'<div class="token-card">'
+        f'<div class="row1">'
+        f'{logo_html}'
+        f'<div class="meta">'
+        f'<div class="symbol">{safe_symbol}</div>'
+        f'<div class="name">{safe_name}</div>'
+        f'</div>'
+        f'{pct_html}'
+        f'</div>'
+        f'<div class="value">{value_str}</div>'
+        f'<div class="balance">{balance_str} {safe_symbol} · {price_str}/token</div>'
+        f'{chain_html}'
+        f'</div>',
+        unsafe_allow_html=True,
+    )
 
 
 def kpi_card(label: str, value: str, sub: Optional[str] = None,

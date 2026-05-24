@@ -116,31 +116,57 @@ if snapshot and snapshot.holdings:
 
     st.markdown("---")
 
-    # ── Holdings table ──
+    # ── Holdings: card grid with dust filter ──
     from services.crypto_logos import get_logo_data_url
-    st.subheader(f"💰 Holdings ({n_tokens})")
+    from services.ui_theme import token_card
+
     sort_rows = sorted(snapshot.holdings,
                        key=lambda h: -(h.usd_value or 0))
-    table_df = pd.DataFrame([{
-        "logo": get_logo_data_url(h.symbol, h.chain) or "",
-        "symbol": h.symbol,
-        "name": h.name[:30] + "…" if len(h.name) > 30 else h.name,
-        "chain": h.chain.title(),
-        "wallet": h.wallet_label,
-        "balance": f"{h.balance:,.4f}",
-        "price": f"${h.usd_price:,.6f}" if h.usd_price else "—",
-        "value": f"${h.usd_value:,.2f}" if h.usd_value else "—",
-        "%": f"{(h.usd_value or 0) / total * 100:.1f}%" if total else "—",
-    } for h in sort_rows])
-    st.dataframe(
-        table_df, use_container_width=True, hide_index=True,
-        column_config={
-            "logo": st.column_config.ImageColumn(label="", width="small",
-                                                  help="Token logo"),
-            "symbol": st.column_config.TextColumn(width="small"),
-            "balance": st.column_config.TextColumn(width="medium"),
-        },
-    )
+
+    # Dust filter
+    header_col, dust_col = st.columns([3, 2])
+    with header_col:
+        st.subheader(f"💰 Holdings")
+    with dust_col:
+        show_dust = st.toggle(
+            "Show dust",
+            value=False,
+            help="Show tokens worth less than the dust threshold (and zero-balance tokens).",
+        )
+
+    DUST_THRESHOLD = 1.00  # USD
+    visible = [h for h in sort_rows
+               if show_dust or (h.usd_value or 0) >= DUST_THRESHOLD]
+    dust = [h for h in sort_rows
+            if (h.usd_value or 0) < DUST_THRESHOLD]
+    dust_total = sum(h.usd_value or 0 for h in dust)
+
+    if not show_dust and dust:
+        st.caption(
+            f"🧹 **{len(dust)} dust token{'s' if len(dust) != 1 else ''} hidden** "
+            f"(total value ${dust_total:,.2f}). Toggle 'Show dust' to see them all."
+        )
+
+    if visible:
+        # Render as 3-column card grid
+        N_COLS = 3
+        for i in range(0, len(visible), N_COLS):
+            row = st.columns(N_COLS, gap="small")
+            for col, h in zip(row, visible[i:i + N_COLS]):
+                with col:
+                    pct = ((h.usd_value or 0) / total * 100) if total else None
+                    token_card(
+                        symbol=h.symbol,
+                        name=h.name or h.symbol,
+                        value_usd=h.usd_value,
+                        balance=h.balance,
+                        price_usd=h.usd_price,
+                        pct_of_portfolio=pct,
+                        chain=h.chain.title(),
+                        logo_data_url=get_logo_data_url(h.symbol, h.chain),
+                    )
+    else:
+        st.info("No holdings above the dust threshold. Toggle 'Show dust' to see everything.")
 
 # ─── Errors ────────────────────────────────────────────────────────
 if snapshot and snapshot.errors:
