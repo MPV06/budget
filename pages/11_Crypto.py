@@ -190,10 +190,9 @@ with st.expander("➕ Add a wallet", expanded=not bool(wallets)):
 
 # ─── API key status ───────────────────────────────────────────────
 st.markdown("---")
+_eth_status = "✓ configured" if etherscan_key else "✗ not set (Ethereum wallets will not fetch)"
 st.caption(
-    f"**Etherscan API key**: "
-    f"{'✓ configured' if etherscan_key else '✗ not set (Ethereum wallets won\\'t fetch)'}  ·  "
-    "**PulseChain**: no key needed"
+    f"**Etherscan API key**: {_eth_status}  ·  **PulseChain**: no key needed"
 )
 if not etherscan_key:
     st.info(
