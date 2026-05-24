@@ -1,0 +1,12 @@
+# Streamlit Community Cloud reads this file to install Python dependencies.
+# Kept in sync with pyproject.toml [project.dependencies].
+streamlit>=1.32
+plaid-python>=22.0.0
+sqlmodel>=0.0.16
+pydantic-settings>=2.2
+python-dotenv>=1.0
+python-dateutil>=2.9
+holidays>=0.45
+pandas>=2.2
+keyring>=24.0
+bcrypt>=4.1
