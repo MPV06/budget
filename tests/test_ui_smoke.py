@@ -20,6 +20,7 @@ PAGES = [
     "pages/8_Emergency_Fund.py",
     "pages/9_Debt.py",
     "pages/10_Save.py",
+    "pages/11_Crypto.py",
 ]
 
 

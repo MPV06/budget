@@ -124,3 +124,12 @@ class DebtAccount(SQLModel, table=True):
     min_payment: float
     notes: str = ""
     is_active: bool = True
+
+
+class Wallet(SQLModel, table=True):
+    __table_args__ = _TARGS
+    id: Optional[int] = Field(default=None, primary_key=True)
+    label: str                      # user-friendly name, e.g. "Main", "Cold storage"
+    address: str = Field(index=True)
+    chain: str                      # 'pulsechain' | 'ethereum'
+    is_active: bool = True

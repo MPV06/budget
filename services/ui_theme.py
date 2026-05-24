@@ -599,6 +599,7 @@ NAV_ITEMS = [
     ("/Goals",            "Goals",      "🎯", "pages/5_Goals.py"),
     ("/Emergency_Fund",   "Emergency",  "🛡️", "pages/8_Emergency_Fund.py"),
     ("/Debt",             "Debt",       "⚖️", "pages/9_Debt.py"),
+    ("/Crypto",           "Crypto",     "🪙", "pages/11_Crypto.py"),
     ("/Transactions",     "Activity",   "📜", "pages/6_Transactions.py"),
     ("/Settings",         "Settings",   "⚙️", "pages/7_Settings.py"),
 ]
