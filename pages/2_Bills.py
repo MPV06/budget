@@ -71,6 +71,28 @@ with get_session() as session:
         from datetime import date as _date
         _today = _date.today()
 
+        # ── Undo banner — sticky until user dismisses or undoes ──
+        undo = st.session_state.get("_undo_paid")
+        if undo:
+            ub1, ub2, ub3 = st.columns([6, 1, 0.5])
+            ub1.success(
+                f"✓ **{undo['name']}** marked paid · next due **{undo['new_date']}**. "
+                "Click ↶ Undo if that was a mistake."
+            )
+            if ub2.button("↶ Undo", key="_undo_paid_btn", use_container_width=True):
+                bill = session.exec(
+                    select(RecurringBill).where(RecurringBill.id == undo["bill_id"])
+                ).first()
+                if bill:
+                    bill.next_due_date = undo["old_date"]
+                    session.add(bill); session.commit()
+                del st.session_state["_undo_paid"]
+                st.rerun()
+            if ub3.button("✕", key="_undo_dismiss_btn",
+                          help="Dismiss this banner"):
+                del st.session_state["_undo_paid"]
+                st.rerun()
+
         st.caption(
             "Click **✓ Paid** once you've paid a bill — the date advances to the next "
             "instance so it stops counting against your safe-to-spend."
@@ -88,8 +110,16 @@ with get_session() as session:
             row[4].markdown(f"next: {b.next_due_date}{overdue_badge}")
             if row[5].button("✓ Paid", key=f"paid_{b.id}",
                               help=f"Advance next_due_date by 1 {b.cadence} period"):
+                old_date = b.next_due_date
                 b.next_due_date = advance_due_date(b.next_due_date, b.cadence)
                 session.add(b); session.commit()
+                # Remember for undo
+                st.session_state["_undo_paid"] = {
+                    "bill_id": b.id,
+                    "name": b.display_name,
+                    "old_date": old_date,
+                    "new_date": b.next_due_date,
+                }
                 st.toast(f"✓ {b.display_name} marked paid — next due {b.next_due_date}")
                 st.rerun()
             if not new_state:
