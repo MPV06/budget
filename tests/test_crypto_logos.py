@@ -1,7 +1,54 @@
 """Tests for token logo lookup."""
 from services.crypto_logos import (
-    get_logo_path, available_symbols, LOGO_MAP, CHAIN_OVERRIDES,
+    get_logo_path, get_logo_data_url, available_symbols,
+    LOGO_MAP, CHAIN_OVERRIDES,
 )
+
+
+# ─── Data URL conversion ──────────────────────────────────────────
+def test_data_url_returns_base64_with_correct_mime():
+    url = get_logo_data_url("PLS")
+    assert url is not None
+    assert url.startswith("data:image/png;base64,")
+    # Verify it's valid base64
+    import base64
+    payload = url.split(",", 1)[1]
+    decoded = base64.b64decode(payload)
+    # PNG magic bytes
+    assert decoded[:8] == b"\x89PNG\r\n\x1a\n"
+
+
+def test_data_url_handles_webp():
+    url = get_logo_data_url("PRVX")
+    assert url is not None
+    assert url.startswith("data:image/webp;base64,")
+
+
+def test_data_url_returns_none_for_unknown_symbol():
+    assert get_logo_data_url("MADEUPCOIN") is None
+
+
+def test_provex_alias_maps_to_webp():
+    """PRVX and PROVEX should both render the same webp logo."""
+    pr = get_logo_data_url("PRVX")
+    pv = get_logo_data_url("PROVEX")
+    assert pr is not None
+    assert pv is not None
+    assert pr == pv
+    assert "webp" in pr
+
+
+def test_data_url_chain_override_routes_correctly():
+    """Verify chain override picks a different FILE for HEX on Ethereum
+    (contents may match if HEX.png and eHEX.png are byte-identical)."""
+    pc_path = get_logo_path("HEX", "pulsechain")
+    eth_path = get_logo_path("HEX", "ethereum")
+    assert pc_path != eth_path
+    assert "eHEX" in eth_path
+    assert "eHEX" not in pc_path
+    # And both should produce valid data URLs
+    assert get_logo_data_url("HEX", "pulsechain").startswith("data:image/png;base64,")
+    assert get_logo_data_url("HEX", "ethereum").startswith("data:image/png;base64,")
 
 
 def test_known_symbol_returns_file():

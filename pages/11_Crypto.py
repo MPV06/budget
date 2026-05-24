@@ -117,12 +117,12 @@ if snapshot and snapshot.holdings:
     st.markdown("---")
 
     # ── Holdings table ──
-    from services.crypto_logos import get_logo_path
+    from services.crypto_logos import get_logo_data_url
     st.subheader(f"💰 Holdings ({n_tokens})")
     sort_rows = sorted(snapshot.holdings,
                        key=lambda h: -(h.usd_value or 0))
     table_df = pd.DataFrame([{
-        "": get_logo_path(h.symbol, h.chain) or "",
+        "logo": get_logo_data_url(h.symbol, h.chain) or "",
         "symbol": h.symbol,
         "name": h.name[:30] + "…" if len(h.name) > 30 else h.name,
         "chain": h.chain.title(),
@@ -135,8 +135,8 @@ if snapshot and snapshot.holdings:
     st.dataframe(
         table_df, use_container_width=True, hide_index=True,
         column_config={
-            "": st.column_config.ImageColumn(label="", width="small",
-                                             help="Token logo"),
+            "logo": st.column_config.ImageColumn(label="", width="small",
+                                                  help="Token logo"),
             "symbol": st.column_config.TextColumn(width="small"),
             "balance": st.column_config.TextColumn(width="medium"),
         },
