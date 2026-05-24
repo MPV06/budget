@@ -125,6 +125,63 @@ st.markdown(
 )
 
 st.markdown("---")
+st.subheader("💾 Backup & Restore")
+st.caption(
+    "Download a JSON backup of your bills, BNPL, envelopes, goals, debts, and "
+    "manual balance. Restore on another device (or after a Streamlit Cloud "
+    "redeploy that wipes /tmp/budget.db)."
+)
+
+backup_col1, backup_col2 = st.columns(2)
+
+with backup_col1:
+    st.markdown("**Download backup**")
+    from datetime import datetime as _dt
+    from services.data_io import export_to_json, BACKUP_NAME
+    from services.db import get_session as _gs
+    with _gs() as _sess:
+        backup_json = export_to_json(_sess)
+    timestamp = _dt.now().strftime("%Y%m%d-%H%M%S")
+    fname = f"budget-backup-{timestamp}.json"
+    st.download_button(
+        label=f"⬇ Download {fname}",
+        data=backup_json,
+        file_name=fname,
+        mime="application/json",
+        use_container_width=True,
+        help="Saves everything you've manually entered as a single JSON file.",
+    )
+
+with backup_col2:
+    st.markdown("**Upload backup**")
+    uploaded = st.file_uploader(
+        "Pick a JSON backup file",
+        type=["json"],
+        accept_multiple_files=False,
+        label_visibility="collapsed",
+    )
+    replace_existing = st.checkbox(
+        "Replace existing data (recommended)",
+        value=True,
+        help="Wipes all current bills/BNPL/envelopes/etc. before importing. "
+             "Uncheck to merge — but you may hit unique-constraint errors.",
+    )
+    if uploaded is not None:
+        if st.button("✓ Restore from this file", type="primary",
+                     use_container_width=True):
+            try:
+                from services.data_io import import_from_json
+                content = uploaded.read().decode("utf-8")
+                with _gs() as _sess:
+                    counts = import_from_json(_sess, content, replace=replace_existing)
+                lines = [f"- **{table}**: {n}" for table, n in counts.items() if n > 0]
+                summary = "\n".join(lines)
+                st.success(f"✓ Restored:\n{summary}")
+                st.balloons()
+            except Exception as e:
+                st.error(f"Restore failed: {e}")
+
+st.markdown("---")
 st.markdown("**Danger zone**")
 col1, col2 = st.columns(2)
 
