@@ -67,16 +67,31 @@ with get_session() as session:
         "great for 'what if I cut this?' experiments. You can always toggle it back ON."
     )
     if active:
+        from services.paycheck_view import advance_due_date
+        from datetime import date as _date
+        _today = _date.today()
+
+        st.caption(
+            "Click **✓ Paid** once you've paid a bill — the date advances to the next "
+            "instance so it stops counting against your safe-to-spend."
+        )
         # Sortable toggle list above the edit expanders
         for b in active:
-            row = st.columns([0.7, 3, 2, 2, 2])
+            row = st.columns([0.5, 2.6, 1.4, 1.6, 1.8, 1.1])
             new_state = row[0].toggle("", value=True, key=f"tog_{b.id}",
                                        label_visibility="collapsed",
                                        help="Toggle OFF to exclude from budget calcs")
             row[1].markdown(f"**{b.display_name}**")
             row[2].markdown(f"${b.amount:,.2f}")
             row[3].markdown(f"`{b.cadence}`")
-            row[4].markdown(f"next: {b.next_due_date}")
+            overdue_badge = " ⚠" if b.next_due_date < _today else ""
+            row[4].markdown(f"next: {b.next_due_date}{overdue_badge}")
+            if row[5].button("✓ Paid", key=f"paid_{b.id}",
+                              help=f"Advance next_due_date by 1 {b.cadence} period"):
+                b.next_due_date = advance_due_date(b.next_due_date, b.cadence)
+                session.add(b); session.commit()
+                st.toast(f"✓ {b.display_name} marked paid — next due {b.next_due_date}")
+                st.rerun()
             if not new_state:
                 b.is_active = False
                 session.add(b); session.commit()

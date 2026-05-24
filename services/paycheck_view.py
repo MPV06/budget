@@ -29,6 +29,24 @@ _CADENCE_STEP = {
 PER_PAYCHECK_CADENCES = {"semi_monthly", "per_paycheck"}
 
 
+def advance_due_date(current: date, cadence: str) -> date:
+    """Move a bill's next_due_date forward by one cadence period.
+
+    Used by the 'Mark paid' button — once you pay a bill, the next instance
+    moves forward so it stops being counted as upcoming.
+    """
+    cadence = (cadence or "monthly").lower()
+    if cadence in PER_PAYCHECK_CADENCES:
+        # Semi-monthly = roughly twice a month. Advance by 15 days to land on
+        # approximately the next paycheck.
+        return current + timedelta(days=15)
+    step = _CADENCE_STEP.get(cadence)
+    if step is None:
+        # Unknown cadence — default to monthly
+        return current + relativedelta(months=1)
+    return step(current)
+
+
 def project_bill_instances(
     next_due_date: date, cadence: str, window_start: date, window_end: date,
 ) -> List[date]:

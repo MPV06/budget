@@ -4,7 +4,34 @@ from datetime import date
 from models.schema import RecurringBill, BNPLPlan, BNPLInstallment, Envelope
 from services.paycheck_view import (
     build_paycheck_breakdowns, average_guilt_free, project_bill_instances,
+    advance_due_date,
 )
+
+
+# ─── Mark Paid: advance_due_date ───────────────────────────────────────
+
+def test_advance_due_date_monthly():
+    assert advance_due_date(date(2026, 5, 15), "monthly") == date(2026, 6, 15)
+
+
+def test_advance_due_date_weekly():
+    assert advance_due_date(date(2026, 5, 23), "weekly") == date(2026, 5, 30)
+
+
+def test_advance_due_date_biweekly():
+    assert advance_due_date(date(2026, 5, 23), "biweekly") == date(2026, 6, 6)
+
+
+def test_advance_due_date_semi_monthly_is_15_days():
+    assert advance_due_date(date(2026, 5, 23), "semi_monthly") == date(2026, 6, 7)
+
+
+def test_advance_due_date_annual():
+    assert advance_due_date(date(2026, 5, 23), "annual") == date(2027, 5, 23)
+
+
+def test_advance_due_date_unknown_cadence_defaults_to_monthly():
+    assert advance_due_date(date(2026, 5, 23), "made_up") == date(2026, 6, 23)
 
 
 # ─── Bill recurrence projection ────────────────────────────────────────
