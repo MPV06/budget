@@ -692,7 +692,6 @@ def _budget_altair_theme():
 # Single source of truth for the nav menu — used by top_nav()
 # Each entry: (route_path, label, emoji, page_file_relative_to_app)
 NAV_ITEMS = [
-    ("/",                 "Home",       "🏠", "app.py"),
     ("/Dashboard",        "Dashboard",  "📊", "pages/1_Dashboard.py"),
     ("/Bills",            "Bills",      "🧾", "pages/2_Bills.py"),
     ("/Envelopes",        "Envelopes",  "✉️", "pages/3_Envelopes.py"),
