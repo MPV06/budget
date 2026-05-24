@@ -38,13 +38,17 @@ def _create_cached_engine(db_path: str):
 
 
 def get_engine():
-    """Return the (cached) SQLAlchemy engine. Safe to call repeatedly."""
+    """Return the (cached) SQLAlchemy engine. Safe to call repeatedly.
+
+    Always re-runs SQLModel.metadata.create_all() — that's idempotent (creates
+    only missing tables, microsecond cost) and ensures new schema migrations
+    take effect even when the engine is held in @st.cache_resource across deploys.
+    """
     global _engine
     try:
-        # Inside Streamlit: cached resource is reused across reruns
         _engine = _create_cached_engine(get_settings().db_path)
     except Exception:
-        # Outside Streamlit (e.g., pytest with overridden settings): fall back to module global
+        # Outside Streamlit (e.g., pytest with overridden settings)
         if _engine is None:
             path = get_settings().db_path
             Path(path).parent.mkdir(parents=True, exist_ok=True)
@@ -53,7 +57,9 @@ def get_engine():
                 connect_args={"check_same_thread": False},
                 pool_pre_ping=True,
             )
-            SQLModel.metadata.create_all(_engine)
+    # Always ensure ALL currently-registered tables exist. Catches the case
+    # where the engine was cached before a new model class was added.
+    SQLModel.metadata.create_all(_engine)
     return _engine
 
 
