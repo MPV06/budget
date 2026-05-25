@@ -18,9 +18,16 @@ import requests
 import streamlit as st
 
 # ─── Endpoints ──────────────────────────────────────────────────────
-# PulseChain Scan API mirrors — tried in order until one responds.
-# Public RPCs occasionally hit 502/503; the fallback list makes the
-# Crypto page resilient to single-host outages.
+# PulseChain JSON-RPC endpoints — used for native balance via eth_getBalance.
+# More reliable than the Scan API because they're simpler / less indexed work.
+# Tried in order until one responds.
+PULSE_RPCS = [
+    "https://rpc-pulsechain.g4mm4.io",   # community-run, well-maintained
+    "https://rpc.pulsechain.com",         # official
+]
+
+# PulseChain Scan API mirrors — used for TOKEN LIST queries (the only thing
+# JSON-RPC can't do natively, since it requires a Blockscout indexer).
 PULSE_SCAN_APIS = [
     "https://api.scan.pulsechain.com/api",
     "https://api.scan.v4.testnet.pulsechain.com/api",  # alt mirror
@@ -76,6 +83,44 @@ def _try_pulse_mirrors(params: dict, timeout: int = 10) -> requests.Response:
     if last_exc:
         raise last_exc
     raise requests.RequestException("All PulseChain mirrors failed")
+
+
+def _post_rpc_with_retry(url: str, payload: dict, timeout: int = 10) -> dict:
+    """POST a JSON-RPC payload with exponential backoff on 5xx / network errors.
+
+    Returns the parsed JSON body. Raises on persistent failure.
+    """
+    last_exc: Optional[Exception] = None
+    for attempt in range(_MAX_RETRIES):
+        try:
+            r = requests.post(url, json=payload, timeout=timeout,
+                              headers={"Content-Type": "application/json"})
+            if 500 <= r.status_code < 600:
+                last_exc = requests.HTTPError(f"{r.status_code} {r.reason}")
+                time.sleep(_BACKOFF_BASE * (2 ** attempt))
+                continue
+            r.raise_for_status()
+            return r.json()
+        except (requests.ConnectionError, requests.Timeout) as e:
+            last_exc = e
+            time.sleep(_BACKOFF_BASE * (2 ** attempt))
+    if last_exc:
+        raise last_exc
+    raise requests.RequestException("unknown JSON-RPC failure after retries")
+
+
+def _try_pulse_rpcs(payload: dict, timeout: int = 10) -> dict:
+    """Cycle through PULSE_RPCS until one returns a successful JSON-RPC response."""
+    last_exc: Optional[Exception] = None
+    for rpc_url in PULSE_RPCS:
+        try:
+            return _post_rpc_with_retry(rpc_url, payload, timeout=timeout)
+        except Exception as e:
+            last_exc = e
+            continue
+    if last_exc:
+        raise last_exc
+    raise requests.RequestException("All PulseChain RPC endpoints failed")
 
 # Native token addresses use a sentinel (real wrapped contracts have different addrs)
 NATIVE_PLS = "native_pls"
@@ -153,8 +198,26 @@ def is_valid_address(addr: str) -> bool:
 def _fetch_pulsechain_balance(address: str) -> Tuple[float, Optional[str]]:
     """Native PLS balance in PLS units. Returns (balance, error_msg).
 
-    Uses retry + mirror fallback for resilience against 502/503 outages.
+    Strategy:
+      1) Try JSON-RPC eth_getBalance against PULSE_RPCS (faster, more reliable)
+      2) Fall back to Scan API with retries if all RPCs fail
     """
+    # Primary path: JSON-RPC eth_getBalance
+    try:
+        data = _try_pulse_rpcs({
+            "jsonrpc": "2.0", "id": 1,
+            "method": "eth_getBalance",
+            "params": [address, "latest"],
+        }, timeout=REQUEST_TIMEOUT)
+        if "result" in data and isinstance(data["result"], str):
+            wei = int(data["result"], 16)   # hex string per JSON-RPC spec
+            return wei / 1e18, None
+        # RPC returned an error object — fall through to Scan API fallback
+        rpc_err = (data.get("error") or {}).get("message", "no result")
+    except Exception as e:
+        rpc_err = str(e)
+
+    # Fallback: Scan API with retries
     try:
         r = _try_pulse_mirrors(
             {"module": "account", "action": "balance", "address": address},
@@ -167,7 +230,7 @@ def _fetch_pulsechain_balance(address: str) -> Tuple[float, Optional[str]]:
         wei = int(data["result"])
         return wei / 1e18, None
     except Exception as e:
-        return 0.0, f"PulseChain RPC error: {e}"
+        return 0.0, f"PulseChain unreachable (RPC: {rpc_err}; Scan: {e})"
 
 
 def _fetch_pulsechain_tokens(address: str) -> Tuple[List[Dict], Optional[str]]:

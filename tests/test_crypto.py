@@ -97,28 +97,53 @@ def _mock_response(json_data, status_code=200):
     return m
 
 
-def test_pulsechain_balance_happy_path():
-    fake = _mock_response({"status": "1", "result": str(int(2_500 * 1e18))})
-    with patch("services.crypto.requests.get", return_value=fake):
+def test_pulsechain_balance_happy_path_via_rpc():
+    """JSON-RPC POST returns balance — Scan API never called."""
+    rpc_response = _mock_response({
+        "jsonrpc": "2.0", "id": 1,
+        "result": hex(int(2_500 * 1e18)),  # hex-encoded wei
+    })
+    with patch("services.crypto.requests.post", return_value=rpc_response), \
+         patch("services.crypto.requests.get") as get_mock:
+        bal, err = _fetch_pulsechain_balance("0x" + "a" * 40)
+        get_mock.assert_not_called()   # Scan API was never tried
+    assert err is None
+    assert bal == 2500.0
+
+
+def test_pulsechain_balance_fallback_to_scan_when_rpc_fails():
+    """All RPCs fail (500) → falls back to Scan API which succeeds."""
+    rpc_fail = _mock_response({}, status_code=503)
+    scan_ok = _mock_response({"status": "1", "result": str(int(2_500 * 1e18))})
+    with patch("services.crypto.requests.post", return_value=rpc_fail), \
+         patch("services.crypto.requests.get", return_value=scan_ok):
         bal, err = _fetch_pulsechain_balance("0x" + "a" * 40)
     assert err is None
     assert bal == 2500.0
 
 
 def test_pulsechain_balance_handles_error():
+    """Scan returns 'Bad address' — surface that as the error (after RPC also fails)."""
+    rpc_fail = _mock_response({}, status_code=503)
     fake = _mock_response({"status": "0", "message": "Bad address"})
-    with patch("services.crypto.requests.get", return_value=fake):
+    with patch("services.crypto.requests.post", return_value=rpc_fail), \
+         patch("services.crypto.requests.get", return_value=fake):
         bal, err = _fetch_pulsechain_balance("0xbad")
     assert bal == 0.0
     assert "Bad address" in err
 
 
 def test_pulsechain_balance_handles_network_failure():
-    with patch("services.crypto.requests.get",
-               side_effect=ConnectionError("boom")):
+    """Both RPC and Scan fail with connection errors → unified error message."""
+    with patch("services.crypto.requests.post",
+               side_effect=ConnectionError("rpc-boom")), \
+         patch("services.crypto.requests.get",
+               side_effect=ConnectionError("scan-boom")):
         bal, err = _fetch_pulsechain_balance("0x" + "a" * 40)
     assert bal == 0.0
-    assert "PulseChain RPC error" in err
+    assert "PulseChain unreachable" in err
+    assert "rpc-boom" in err
+    assert "scan-boom" in err
 
 
 def test_pulsechain_tokens_empty_wallet_returns_clean():
