@@ -85,6 +85,55 @@ def _try_pulse_mirrors(params: dict, timeout: int = 10) -> requests.Response:
     raise requests.RequestException("All PulseChain mirrors failed")
 
 
+# ─── Known core PulseChain tokens ──────────────────────────────────
+# These are always queried via JSON-RPC eth_call (balanceOf) regardless of
+# whether the Scan API is up. Ensures core holdings never disappear when
+# the indexer is down. Add more known tokens to this dict as needed.
+# Format: {SYMBOL: (contract_address_lowercase, name, decimals)}
+KNOWN_PULSECHAIN_TOKENS = {
+    "PLSX": ("0x95b303987a60c71504d99aa1b13b4da07b0790ab", "PulseX", 18),
+    "HEX":  ("0x2b591e99afe9f32eaa6214f7b7629768c40eeb39", "HEX", 8),
+    "INC":  ("0x6efafcb715f385c71d8af763e8478feea6fadf63", "Incentive", 18),
+    "PRVX": ("0xf6f8db0aba00007681f8faf16a0fda1c9b030b11", "ProveX", 18),
+}
+
+# ERC-20 balanceOf selector (function selector hash)
+ERC20_BALANCE_OF_SELECTOR = "0x70a08231"
+
+
+def _erc20_balance_of_call_data(wallet_address: str) -> str:
+    """Build the calldata for ERC-20 balanceOf(wallet_address)."""
+    addr_no_prefix = wallet_address[2:].lower().rjust(40, "0")
+    padded = addr_no_prefix.rjust(64, "0")
+    return ERC20_BALANCE_OF_SELECTOR + padded
+
+
+def _fetch_erc20_balance_rpc(
+    wallet_address: str, contract_address: str, decimals: int = 18,
+) -> Tuple[float, Optional[str]]:
+    """Query an ERC-20 token balance via JSON-RPC eth_call. Resilient via
+    PULSE_RPCS rotation."""
+    try:
+        data = _try_pulse_rpcs({
+            "jsonrpc": "2.0", "id": 1,
+            "method": "eth_call",
+            "params": [
+                {"to": contract_address,
+                 "data": _erc20_balance_of_call_data(wallet_address)},
+                "latest",
+            ],
+        }, timeout=REQUEST_TIMEOUT)
+        if "result" in data and isinstance(data["result"], str):
+            raw = data["result"]
+            if raw == "0x" or raw == "0x0":
+                return 0.0, None
+            wei = int(raw, 16)
+            return wei / (10 ** decimals), None
+        return 0.0, (data.get("error") or {}).get("message", "no result")
+    except Exception as e:
+        return 0.0, f"RPC error: {e}"
+
+
 def _post_rpc_with_retry(url: str, payload: dict, timeout: int = 10) -> dict:
     """POST a JSON-RPC payload with exponential backoff on 5xx / network errors.
 
@@ -425,15 +474,18 @@ def get_portfolio(
             tokens, err = _fetch_pulsechain_tokens(address)
             if err:
                 snapshot.errors.append(f"{label} (PulseChain tokens): {err}")
+            seen_addresses: set = set()
             for t in tokens:
                 try:
                     decimals = int(t.get("decimals", 18))
                     raw = int(t.get("balance", 0))
                     if raw <= 0:
                         continue
+                    contract = t.get("contractAddress", "").lower()
+                    seen_addresses.add(contract)
                     snapshot.holdings.append(TokenHolding(
                         chain="pulsechain",
-                        address=t.get("contractAddress", "").lower(),
+                        address=contract,
                         symbol=t.get("symbol", "?"),
                         name=t.get("name", ""),
                         balance=raw / (10 ** decimals),
@@ -442,6 +494,25 @@ def get_portfolio(
                     ))
                 except (TypeError, ValueError):
                     continue
+
+            # Backfill: query KNOWN core tokens directly via RPC if Scan didn't
+            # return them. Catches the case where Scan API is down OR doesn't
+            # index a particular token. Never duplicates: skips contracts
+            # already in seen_addresses.
+            for symbol, (contract, name, decimals) in KNOWN_PULSECHAIN_TOKENS.items():
+                if contract.lower() in seen_addresses:
+                    continue
+                bal, _ = _fetch_erc20_balance_rpc(address, contract, decimals)
+                if bal > 0:
+                    snapshot.holdings.append(TokenHolding(
+                        chain="pulsechain",
+                        address=contract.lower(),
+                        symbol=symbol,
+                        name=name,
+                        balance=bal,
+                        decimals=decimals,
+                        wallet_label=label,
+                    ))
 
         elif chain == "ethereum":
             eth_balance, err = _fetch_ethereum_balance(address, etherscan_api_key)
