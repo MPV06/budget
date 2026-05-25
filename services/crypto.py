@@ -10,6 +10,7 @@ Cached per-render via Streamlit caching to avoid hammering APIs.
 from __future__ import annotations
 
 import os
+import time
 from dataclasses import dataclass, field
 from typing import Dict, List, Optional, Tuple
 
@@ -17,9 +18,64 @@ import requests
 import streamlit as st
 
 # ─── Endpoints ──────────────────────────────────────────────────────
-PULSE_SCAN_API = "https://api.scan.pulsechain.com/api"
+# PulseChain Scan API mirrors — tried in order until one responds.
+# Public RPCs occasionally hit 502/503; the fallback list makes the
+# Crypto page resilient to single-host outages.
+PULSE_SCAN_APIS = [
+    "https://api.scan.pulsechain.com/api",
+    "https://api.scan.v4.testnet.pulsechain.com/api",  # alt mirror
+]
+PULSE_SCAN_API = PULSE_SCAN_APIS[0]   # back-compat for tests
 ETHERSCAN_API = "https://api.etherscan.io/api"
 DEXSCREENER_API = "https://api.dexscreener.com/latest/dex/tokens"
+
+# Retry config
+_MAX_RETRIES = 3
+_BACKOFF_BASE = 0.4  # seconds — 0.4s, 0.8s, 1.6s
+
+
+def _get_with_retry(url: str, params: dict, timeout: int = 10) -> requests.Response:
+    """GET with exponential backoff on 5xx / network errors.
+
+    Raises the last exception if all retries fail.
+    Returns the Response if any attempt succeeds with non-5xx status.
+    """
+    last_exc = None
+    for attempt in range(_MAX_RETRIES):
+        try:
+            r = requests.get(url, params=params, timeout=timeout)
+            # Retry only on server errors (5xx) — client errors won't fix themselves
+            if 500 <= r.status_code < 600:
+                last_exc = requests.HTTPError(
+                    f"{r.status_code} {r.reason}", response=r,
+                )
+                time.sleep(_BACKOFF_BASE * (2 ** attempt))
+                continue
+            return r
+        except (requests.ConnectionError, requests.Timeout) as e:
+            last_exc = e
+            time.sleep(_BACKOFF_BASE * (2 ** attempt))
+    # Out of retries
+    if last_exc:
+        raise last_exc
+    raise requests.RequestException("unknown failure after retries")
+
+
+def _try_pulse_mirrors(params: dict, timeout: int = 10) -> requests.Response:
+    """Cycle through PULSE_SCAN_APIS, returning the first successful response.
+
+    Each mirror gets _MAX_RETRIES attempts before falling through to the next.
+    """
+    last_exc: Optional[Exception] = None
+    for base_url in PULSE_SCAN_APIS:
+        try:
+            return _get_with_retry(base_url, params, timeout=timeout)
+        except Exception as e:
+            last_exc = e
+            continue
+    if last_exc:
+        raise last_exc
+    raise requests.RequestException("All PulseChain mirrors failed")
 
 # Native token addresses use a sentinel (real wrapped contracts have different addrs)
 NATIVE_PLS = "native_pls"
@@ -95,11 +151,13 @@ def is_valid_address(addr: str) -> bool:
 
 # ─── Chain queries ─────────────────────────────────────────────────
 def _fetch_pulsechain_balance(address: str) -> Tuple[float, Optional[str]]:
-    """Native PLS balance in PLS units. Returns (balance, error_msg)."""
+    """Native PLS balance in PLS units. Returns (balance, error_msg).
+
+    Uses retry + mirror fallback for resilience against 502/503 outages.
+    """
     try:
-        r = requests.get(
-            PULSE_SCAN_API,
-            params={"module": "account", "action": "balance", "address": address},
+        r = _try_pulse_mirrors(
+            {"module": "account", "action": "balance", "address": address},
             timeout=REQUEST_TIMEOUT,
         )
         r.raise_for_status()
@@ -113,11 +171,13 @@ def _fetch_pulsechain_balance(address: str) -> Tuple[float, Optional[str]]:
 
 
 def _fetch_pulsechain_tokens(address: str) -> Tuple[List[Dict], Optional[str]]:
-    """List of PRC-20 token balances. Returns (rows, error_msg)."""
+    """List of PRC-20 token balances. Returns (rows, error_msg).
+
+    Uses retry + mirror fallback for resilience against 502/503 outages.
+    """
     try:
-        r = requests.get(
-            PULSE_SCAN_API,
-            params={"module": "account", "action": "tokenlist", "address": address},
+        r = _try_pulse_mirrors(
+            {"module": "account", "action": "tokenlist", "address": address},
             timeout=REQUEST_TIMEOUT,
         )
         r.raise_for_status()
