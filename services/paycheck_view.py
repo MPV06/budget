@@ -157,6 +157,10 @@ def build_paycheck_breakdowns(
     installments = session.exec(
         select(BNPLInstallment).where(BNPLInstallment.status == "scheduled")
     ).all()
+    # Load plans for merchant-name labels — otherwise multiple plans' first
+    # installments all read 'BNPL #1' and look like duplicates.
+    from models.schema import BNPLPlan as _BNPLPlan
+    _plans_by_id = {p.id: p for p in session.exec(select(_BNPLPlan)).all()}
     envelopes = session.exec(select(Envelope)).all()
 
     upcoming = [p for p in pay_schedule if p.actual_deposit_date >= today][:n + 1]
@@ -188,8 +192,13 @@ def build_paycheck_breakdowns(
                     bucket.append(LineItem(
                         label=b.display_name, amount=b.amount, due_date=d, kind=kind,
                     ))
+        def _bnpl_label(inst) -> str:
+            plan = _plans_by_id.get(inst.plan_id)
+            merchant = plan.merchant_name if plan else "BNPL"
+            return f"{merchant} #{inst.installment_number}"
+
         period_bnpl = [
-            LineItem(label=f"BNPL #{i_.installment_number}", amount=i_.amount,
+            LineItem(label=_bnpl_label(i_), amount=i_.amount,
                      due_date=i_.due_date, kind="bnpl")
             for i_ in installments if start <= i_.due_date < end
         ]

@@ -104,8 +104,18 @@ def build_dashboard_view(
     installments = session.exec(
         select(BNPLInstallment).where(BNPLInstallment.status == "scheduled")
     ).all()
+    # Load plans so we can label installments with their merchant (otherwise
+    # multiple plans' first installments all read 'BNPL #1' and look duplicated)
+    from models.schema import BNPLPlan
+    plans_by_id = {p.id: p for p in session.exec(select(BNPLPlan)).all()}
+
+    def _bnpl_label(inst) -> str:
+        plan = plans_by_id.get(inst.plan_id)
+        merchant = plan.merchant_name if plan else "BNPL"
+        return f"{merchant} #{inst.installment_number}"
+
     upcoming_bnpl = [
-        ObligationItem(due_date=i.due_date, amount=i.amount, label=f"BNPL #{i.installment_number}")
+        ObligationItem(due_date=i.due_date, amount=i.amount, label=_bnpl_label(i))
         for i in installments
         if i.due_date < next_paycheck  # includes past-due
     ]

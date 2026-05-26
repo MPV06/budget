@@ -260,6 +260,38 @@ with get_session() as session:
 if not plans:
     st.info("No active BNPL plans. Add one below.")
 
+# ─── DEDUP TOOL ────────────────────────────────────────────────────
+st.markdown("---")
+from services.bnpl_dedup import find_duplicate_plans, find_duplicate_installments, deduplicate
+with get_session() as session:
+    dup_plans = find_duplicate_plans(session)
+    dup_insts = find_duplicate_installments(session)
+
+if dup_plans or dup_insts:
+    st.subheader("🧹 Cleanup")
+    msg_parts = []
+    if dup_plans:
+        msg_parts.append(f"**{len(dup_plans)} duplicate plan(s)**")
+    if dup_insts:
+        msg_parts.append(f"**{len(dup_insts)} duplicate installment row(s)**")
+    st.warning(
+        f"Found {' and '.join(msg_parts)} in your BNPL data. "
+        "This happens when the same plan was added twice or when a JSON backup "
+        "was imported without 'Replace existing data' checked. Cleanup is safe — "
+        "it keeps one of each duplicate and re-points any references."
+    )
+    if st.button("🧹 Remove duplicates", type="primary",
+                  use_container_width=False,
+                  help="Keeps the oldest row of each duplicate; deletes the rest."):
+        with get_session() as session:
+            result = deduplicate(session)
+        st.success(
+            f"✓ Removed {result['plans_removed']} duplicate plan(s) and "
+            f"{result['installments_removed']} duplicate installment(s)."
+        )
+        st.balloons()
+        st.rerun()
+
 st.markdown("---")
 
 # ─── ADD PLAN FORM ─────────────────────────────────────────────────
