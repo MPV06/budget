@@ -101,23 +101,24 @@ def build_dashboard_view(
         if b.next_due_date < next_paycheck  # includes past-due (overdue)
     ]
 
+    # Load all scheduled installments, but JOIN to BNPLPlan so we can:
+    #   (1) skip installments whose plan is inactive (user toggled it off)
+    #   (2) label by merchant name (e.g. "Amazon #1") instead of generic "BNPL #1"
+    from models.schema import BNPLPlan
+    active_plans_by_id = {
+        p.id: p
+        for p in session.exec(select(BNPLPlan).where(BNPLPlan.is_active == True)).all()  # noqa: E712
+    }
     installments = session.exec(
         select(BNPLInstallment).where(BNPLInstallment.status == "scheduled")
     ).all()
-    # Load plans so we can label installments with their merchant (otherwise
-    # multiple plans' first installments all read 'BNPL #1' and look duplicated)
-    from models.schema import BNPLPlan
-    plans_by_id = {p.id: p for p in session.exec(select(BNPLPlan)).all()}
-
-    def _bnpl_label(inst) -> str:
-        plan = plans_by_id.get(inst.plan_id)
-        merchant = plan.merchant_name if plan else "BNPL"
-        return f"{merchant} #{inst.installment_number}"
-
     upcoming_bnpl = [
-        ObligationItem(due_date=i.due_date, amount=i.amount, label=_bnpl_label(i))
+        ObligationItem(
+            due_date=i.due_date, amount=i.amount,
+            label=f"{active_plans_by_id[i.plan_id].merchant_name} #{i.installment_number}",
+        )
         for i in installments
-        if i.due_date < next_paycheck  # includes past-due
+        if i.plan_id in active_plans_by_id and i.due_date < next_paycheck
     ]
 
     obligations = upcoming_bills + upcoming_bnpl

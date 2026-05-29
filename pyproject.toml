@@ -20,6 +20,7 @@ dependencies = [
   "pandas>=2.2",
   "keyring>=24.0",
   "bcrypt>=4.1",
+  "psycopg2-binary>=2.9",
 ]
 
 [project.optional-dependencies]

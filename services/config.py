@@ -12,6 +12,9 @@ class Settings(BaseSettings):
     plaid_access_token: str = ""
     paycheck_net_amount: float = Field(gt=0)
     db_path: str = "./data/budget.db"
+    # If set, use this Postgres connection string (e.g., Supabase).
+    # When empty, falls back to SQLite at db_path.
+    database_url: str = ""
 
 
 def get_settings() -> Settings:

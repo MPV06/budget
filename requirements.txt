@@ -10,3 +10,4 @@ holidays>=0.45
 pandas>=2.2
 keyring>=24.0
 bcrypt>=4.1
+psycopg2-binary>=2.9   # Postgres driver — used when DATABASE_URL is set
